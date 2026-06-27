@@ -331,6 +331,78 @@ button { cursor: pointer; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 
+/* ============================================================
+   Adições: chips, sub-cards, suplementos, receitas, switch,
+   uploads de imagem, ações de paciente
+   ============================================================ */
+
+/* atalhos (chips) */
+.chip-row { display:flex; flex-wrap:wrap; gap:8px; }
+.chip {
+  border:1px solid var(--linha-2); background:var(--surface); color:var(--texto-m);
+  border-radius:100px; padding:6px 13px; font-size:13px; font-family:inherit; cursor:pointer;
+  transition:all .15s ease;
+}
+.chip:hover { border-color:var(--accent); color:var(--marrom); background:var(--surface-2); }
+
+/* sub-cards (suplemento, receita) */
+.sub-card {
+  border:1px solid var(--linha-2); border-radius:14px; padding:16px;
+  background:var(--surface-2); margin-bottom:12px;
+}
+.sub-card .grow { flex:1; }
+.lbl { display:block; font-size:12.5px; font-weight:500; color:var(--texto-m); margin-bottom:6px; letter-spacing:.02em; }
+
+/* ativos de fórmula manipulada */
+.ativos { display:flex; flex-direction:column; gap:8px; }
+.ativo-row { display:grid; grid-template-columns:1.4fr 1fr 30px; gap:8px; align-items:center; }
+.ativo-row input { width:100%; }
+.ativo-row .x, .foto .x {
+  border:none; background:var(--bege); color:var(--marrom); border-radius:8px;
+  width:28px; height:28px; cursor:pointer; font-size:16px; line-height:1;
+}
+.ativo-row .x:hover { background:#e3c9c9; color:#9a3b3b; }
+
+/* switch simples */
+.switch { display:inline-flex; align-items:center; gap:8px; font-size:14px; color:var(--texto-m); cursor:pointer; margin-top:10px; }
+.switch input { width:18px; height:18px; accent-color:var(--accent); cursor:pointer; }
+
+/* fotos de receita */
+.fotos { display:flex; flex-wrap:wrap; gap:10px; margin-top:10px; }
+.foto { position:relative; width:120px; height:90px; border-radius:10px; overflow:hidden; border:1px solid var(--linha-2); }
+.foto img { width:100%; height:100%; object-fit:cover; display:block; }
+.foto .x { position:absolute; top:4px; right:4px; width:24px; height:24px; background:rgba(52,42,30,.82); color:#fff; }
+.foto .x:hover { background:#9a3b3b; }
+
+/* uploads de imagem (config) */
+.img-fields { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+.img-preview {
+  width:120px; height:120px; border:1px dashed var(--linha-2); border-radius:14px;
+  display:flex; align-items:center; justify-content:center; overflow:hidden; background:var(--surface-2);
+}
+.img-preview.wide { width:100%; max-width:280px; height:150px; }
+.img-preview img { width:100%; height:100%; object-fit:cover; }
+.img-preview .ph { color:var(--texto-mm); font-size:12.5px; }
+
+/* ações na linha de paciente */
+.row-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+.icon-btn {
+  border:1px solid var(--linha-2); background:var(--surface); color:var(--texto-m);
+  border-radius:100px; padding:7px 13px; font-size:12.5px; font-family:inherit; cursor:pointer;
+  text-decoration:none; white-space:nowrap; transition:all .15s ease; display:inline-flex; align-items:center; gap:4px;
+}
+.icon-btn:hover { border-color:var(--accent); color:var(--marrom); }
+.icon-btn.wpp:hover { border-color:#25D366; color:#128C3E; }
+
+/* sticky-actions reaproveitado na config */
+.sticky-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+
+@media (max-width:720px){
+  .img-fields { grid-template-columns:1fr; gap:16px; }
+  .ativo-row { grid-template-columns:1fr 1fr 30px; }
+  .row-actions { flex-direction:column; align-items:stretch; }
+}
+
   </style>
 </head>
 <body>
@@ -1242,6 +1314,18 @@ const App = (() => {
 
   const COLECOES = { PAC: 'pacientes', AT: 'atendimentos', DIET: 'dietas', CFG: 'config' };
   const REFEICOES_PADRAO = ['Café da manhã', 'Lanche da manhã', 'Almoço', 'Lanche da tarde', 'Jantar', 'Ceia'];
+  // refeições que você pode adicionar com um clique no montador de dieta
+  const REFEICOES_SUGERIDAS = ['Pré-treino', 'Pós-treino', 'Desjejum', 'Café da manhã', 'Lanche da manhã',
+    'Almoço', 'Lanche da tarde', 'Jantar', 'Ceia', 'Refeição livre'];
+
+  // estilos de cálculo: uma escolha única que já combina fórmula de TMB + método de GET.
+  // (Resolve o "escolher dois ao mesmo tempo": aqui você escolhe UM, mas pode trocar.)
+  const ESTILOS_CALCULO = [
+    { id: 'venta_fao',     nome: 'VENTA · FAO/OMS',            desc: 'Recomendado. Separa sono e rotina, com efeito térmico de +10%.', formulaTMB: 'fao',    metodoGET: 'venta' },
+    { id: 'venta_harris',  nome: 'VENTA · Harris-Benedict',    desc: 'Mesmo método VENTA, usando a fórmula de Harris & Benedict.',       formulaTMB: 'harris', metodoGET: 'venta' },
+    { id: 'fator_fao',     nome: 'Fator de atividade · FAO/OMS', desc: 'Mais direto: GET = TMB × fator de atividade.',                    formulaTMB: 'fao',    metodoGET: 'fator' },
+    { id: 'fator_harris',  nome: 'Fator de atividade · Harris', desc: 'GET = TMB × fator, com a fórmula de Harris & Benedict.',           formulaTMB: 'harris', metodoGET: 'fator' },
+  ];
 
   /* ------------------------------------------------------------- DOM utils */
   function el(tag, attrs, ...kids) {
@@ -1674,30 +1758,17 @@ const App = (() => {
     const resultBox = el('div', { class: 'mt' });
     const onCi = () => debouncedSave(COLECOES.AT, at, 600);
 
-    // ----- escolha de fórmula TMB
-    const tmbGrid = el('div', { class: 'method-grid' });
-    Object.entries(CALC_DATA.formulasTMB).forEach(([k, f]) => {
-      const opt = el('div', { class: 'method-opt' + (ci.formulaTMB === k ? ' on' : ''), onclick: () => {
-        ci.formulaTMB = k; onCi();
-        tmbGrid.querySelectorAll('.method-opt').forEach(o => o.classList.remove('on'));
+    // ----- escolha ÚNICA de estilo de cálculo (já define fórmula TMB + método GET)
+    // estilo atual derivado do que estiver salvo (com padrão venta_fao)
+    let estiloAtual = (ESTILOS_CALCULO.find(e => e.formulaTMB === ci.formulaTMB && e.metodoGET === ci.metodoGET) || ESTILOS_CALCULO[0]).id;
+    const estiloGrid = el('div', { class: 'method-grid' });
+    ESTILOS_CALCULO.forEach(e => {
+      const opt = el('div', { class: 'method-opt' + (estiloAtual === e.id ? ' on' : ''), onclick: () => {
+        estiloAtual = e.id; ci.formulaTMB = e.formulaTMB; ci.metodoGET = e.metodoGET; onCi();
+        estiloGrid.querySelectorAll('.method-opt').forEach(o => o.classList.remove('on'));
         opt.classList.add('on');
-      } }, el('b', null, f.nome), el('span', null, f.descricao));
-      tmbGrid.appendChild(opt);
-    });
-
-    // ----- escolha de método GET
-    const metodos = {
-      venta: { nome: 'Método VENTA (do material)', desc: 'Separa horas de sono e de rotina, com efeito térmico de +10%.' },
-      fator: { nome: 'Fator de atividade', desc: 'GET = TMB × fator de atividade. Mais direto.' },
-    };
-    const getGrid = el('div', { class: 'method-grid' });
-    Object.entries(metodos).forEach(([k, m]) => {
-      const opt = el('div', { class: 'method-opt' + (ci.metodoGET === k ? ' on' : ''), onclick: () => {
-        ci.metodoGET = k; onCi();
-        getGrid.querySelectorAll('.method-opt').forEach(o => o.classList.remove('on'));
-        opt.classList.add('on');
-      } }, el('b', null, m.nome), el('span', null, m.desc));
-      getGrid.appendChild(opt);
+      } }, el('b', null, e.nome), el('span', null, e.desc));
+      estiloGrid.appendChild(opt);
     });
 
     // ----- inputs
@@ -1744,8 +1815,9 @@ const App = (() => {
     const btnDieta = el('button', { class: 'btn btn-soft', onclick: () => abrirDietaDoAtendimento(at) }, '🍽 Montar dieta');
 
     const panel = el('div', { class: 'calc-panel' },
-      el('div', { class: 'field' }, el('label', null, 'Fórmula de Taxa Metabólica Basal (TMB)')), tmbGrid,
-      el('div', { class: 'field mt' }, el('label', null, 'Método de gasto energético (GET)')), getGrid,
+      el('div', { class: 'field' }, el('label', null, 'Estilo de cálculo'),
+        el('div', { class: 'ajuda', style: 'margin:0 0 6px' }, 'Escolha um. Já vem o recomendado marcado — você pode trocar quando quiser.')),
+      estiloGrid,
       el('div', { class: 'mt' }, inputs),
       el('div', { class: 'sticky-actions' }, btnResultado, btnRelatorio, btnDieta),
       resultBox,
@@ -1839,6 +1911,7 @@ const App = (() => {
   function pdfHeader(doc, titulo, sub) {
     const cfg = state.config || {};
     doc.setFillColor(74, 60, 44); doc.rect(0, 0, 210, 26, 'F');
+    if (cfg.logo) { try { doc.addImage(cfg.logo, 'JPEG', 178, 4, 18, 18); } catch (e) {} }
     doc.setTextColor(246, 238, 223); doc.setFont('helvetica', 'bold'); doc.setFontSize(15);
     doc.text(cfg.nome || 'Consultório de Nutrição', 14, 12);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
@@ -2014,13 +2087,49 @@ const App = (() => {
     const desenharRefeicoes = () => {
       refeicoesWrap.innerHTML = '';
       dieta.refeicoes.forEach((m, mi) => refeicoesWrap.appendChild(renderRefeicao(m, mi, dieta, () => { persist(); recalcular(); }, () => { dieta.refeicoes.splice(mi, 1); persist(); desenharRefeicoes(); recalcular(); })));
+      // atalhos rápidos + adicionar personalizada
+      const chips = el('div', { class: 'chip-row' });
+      REFEICOES_SUGERIDAS.forEach(nome => {
+        chips.appendChild(el('button', { class: 'chip', onclick: () => {
+          dieta.refeicoes.push({ nome, itens: [] }); persist(); desenharRefeicoes(); recalcular();
+        } }, '+ ' + nome));
+      });
       refeicoesWrap.appendChild(el('div', { class: 'mt' },
-        el('button', { class: 'btn btn-ghost btn-sm', onclick: () => { dieta.refeicoes.push({ nome: 'Nova refeição', itens: [] }); persist(); desenharRefeicoes(); recalcular(); } }, '+ Adicionar refeição')));
+        el('div', { class: 'ajuda', style: 'margin-bottom:6px' }, 'Adicionar refeição rápida:'),
+        chips,
+        el('button', { class: 'btn btn-ghost btn-sm mt-s', onclick: () => { dieta.refeicoes.push({ nome: 'Nova refeição', itens: [] }); persist(); desenharRefeicoes(); recalcular(); } }, '+ Refeição personalizada')));
     };
 
-    const obsField = el('textarea', { placeholder: 'Orientações gerais, substituições, hidratação, suplementação…' });
+    const obsField = el('textarea', { placeholder: 'Orientações gerais, substituições, hidratação…' });
     obsField.value = dieta.obs || '';
     obsField.addEventListener('input', () => { dieta.obs = obsField.value; persist(); });
+
+    // estruturas novas
+    dieta.suplementos = dieta.suplementos || [];
+    dieta.receitas = dieta.receitas || [];
+    dieta.retorno = dieta.retorno || { semRetorno: false, data: '', semanas: 4 };
+
+    const supWrap = el('div');
+    const desenharSup = () => {
+      supWrap.innerHTML = '';
+      if (!dieta.suplementos.length) supWrap.appendChild(el('div', { class: 'ajuda' }, 'Nenhum suplemento adicionado ainda.'));
+      dieta.suplementos.forEach((s, si) => supWrap.appendChild(renderSuplemento(s, si, persist, () => { dieta.suplementos.splice(si, 1); persist(); desenharSup(); })));
+      supWrap.appendChild(el('div', { class: 'mt-s' },
+        el('button', { class: 'btn btn-soft btn-sm', onclick: () => { dieta.suplementos.push({ nome: '', manipulado: false, quantidade: '', comoUsar: '', duracao: '', ativos: [] }); persist(); desenharSup(); } }, '+ Suplemento pronto'),
+        el('button', { class: 'btn btn-soft btn-sm', style: 'margin-left:8px', onclick: () => { dieta.suplementos.push({ nome: 'Fórmula manipulada', manipulado: true, quantidade: '', comoUsar: '', duracao: '', ativos: [{ nome: '', dose: '' }] }); persist(); desenharSup(); } }, '+ Fórmula manipulada (vários ativos)')));
+    };
+    desenharSup();
+
+    const recWrap = el('div');
+    const desenharRec = () => {
+      recWrap.innerHTML = '';
+      if (!dieta.receitas.length) recWrap.appendChild(el('div', { class: 'ajuda' }, 'Cole receitas e anexe fotos do preparo, se quiser.'));
+      dieta.receitas.forEach((r, ri) => recWrap.appendChild(renderReceita(r, ri, persist, () => { dieta.receitas.splice(ri, 1); persist(); desenharRec(); })));
+      recWrap.appendChild(el('button', { class: 'btn btn-soft btn-sm mt-s', onclick: () => { dieta.receitas.push({ titulo: '', texto: '', fotos: [] }); persist(); desenharRec(); } }, '+ Adicionar receita'));
+    };
+    desenharRec();
+
+    const retBox = renderRetorno(dieta, persist);
 
     desenharRefeicoes();
     recalcular();
@@ -2036,10 +2145,128 @@ const App = (() => {
         el('button', { class: 'btn btn-primary', onclick: () => exportarDietaPDF(dieta) }, '⬇ Exportar dieta (PDF)')),
       el('div', { class: 'diet-top' }, targetBar),
       refeicoesWrap,
+
+      el('div', { class: 'section-title' }, el('span', { class: 'idx' }, '💊'), el('h2', null, 'Suplementação'), el('span', { class: 'rule' })),
+      el('div', { class: 'card card-pad' }, supWrap),
+
+      el('div', { class: 'section-title' }, el('span', { class: 'idx' }, '📖'), el('h2', null, 'Receitas'), el('span', { class: 'rule' })),
+      el('div', { class: 'card card-pad' }, recWrap),
+
+      el('div', { class: 'section-title' }, el('span', { class: 'idx' }, '↩'), el('h2', null, 'Retorno e acompanhamento'), el('span', { class: 'rule' })),
+      el('div', { class: 'card card-pad' }, retBox),
+
       el('div', { class: 'section-title' }, el('span', { class: 'idx' }, '✎'), el('h2', null, 'Observações'), el('span', { class: 'rule' })),
       el('div', { class: 'card card-pad' }, el('div', { class: 'field' }, obsField)),
     );
     marcarSalvo();
+  }
+
+  /* --------------------------------------------------- render de suplemento */
+  function renderSuplemento(s, si, persist, onRemove) {
+    const inp = (lab, key, ph, full) => {
+      const i = el('input', { value: s[key] || '', placeholder: ph || '' });
+      i.addEventListener('input', () => { s[key] = i.value; persist(); });
+      return el('div', { class: 'field ' + (full ? 'full' : 'half') }, el('label', null, lab), i);
+    };
+    const txt = (lab, key, ph) => {
+      const t = el('textarea', { placeholder: ph || '', style: 'min-height:54px' }); t.value = s[key] || '';
+      t.addEventListener('input', () => { s[key] = t.value; persist(); });
+      return el('div', { class: 'field full' }, el('label', null, lab), t);
+    };
+
+    // ativos (para fórmula manipulada)
+    const ativosWrap = el('div', { class: 'ativos' });
+    const desenharAtivos = () => {
+      ativosWrap.innerHTML = '';
+      s.ativos = s.ativos || [];
+      s.ativos.forEach((a, ai) => {
+        const nomeI = el('input', { value: a.nome || '', placeholder: 'Ativo (ex.: Magnésio dimalato)' });
+        nomeI.addEventListener('input', () => { a.nome = nomeI.value; persist(); });
+        const doseI = el('input', { value: a.dose || '', placeholder: 'Dose (ex.: 300 mg)' });
+        doseI.addEventListener('input', () => { a.dose = doseI.value; persist(); });
+        ativosWrap.appendChild(el('div', { class: 'ativo-row' }, nomeI, doseI,
+          el('button', { class: 'x', onclick: () => { s.ativos.splice(ai, 1); persist(); desenharAtivos(); } }, '×')));
+      });
+      ativosWrap.appendChild(el('button', { class: 'btn btn-ghost btn-sm', onclick: () => { s.ativos.push({ nome: '', dose: '' }); persist(); desenharAtivos(); } }, '+ ativo'));
+    };
+
+    const togManip = el('label', { class: 'switch' },
+      (() => { const c = el('input', { type: 'checkbox' }); if (s.manipulado) c.checked = true;
+        c.addEventListener('change', () => { s.manipulado = c.checked; persist(); ativosBlock.style.display = c.checked ? '' : 'none'; }); return c; })(),
+      el('span', null, ' Fórmula manipulada (com vários ativos)'));
+
+    const ativosBlock = el('div', { class: 'mt-s', style: s.manipulado ? '' : 'display:none' },
+      el('label', { class: 'lbl' }, 'Ativos da fórmula'), ativosWrap);
+    desenharAtivos();
+
+    return el('div', { class: 'sub-card' },
+      el('div', { class: 'row between' }, el('b', null, s.manipulado ? 'Fórmula manipulada' : 'Suplemento'),
+        el('button', { class: 'btn btn-danger btn-sm', onclick: onRemove }, 'remover')),
+      el('div', { class: 'form-grid mt-s' },
+        inp(s.manipulado ? 'Nome da fórmula' : 'Nome do suplemento', 'nome', 'ex.: Whey, Creatina, Vit. D…', true),
+        inp('Quantidade / dose', 'quantidade', 'ex.: 1 cápsula, 5 g, 10 gotas'),
+        inp('Por quanto tempo usar', 'duracao', 'ex.: 60 dias, contínuo')),
+      txt('Como usar', 'comoUsar', 'ex.: 1x ao dia em jejum, com água'),
+      togManip, ativosBlock);
+  }
+
+  /* ----------------------------------------------------- render de receita */
+  function renderReceita(r, ri, persist, onRemove) {
+    const tituloI = el('input', { value: r.titulo || '', placeholder: 'Título da receita (ex.: Panqueca proteica)' });
+    tituloI.addEventListener('input', () => { r.titulo = tituloI.value; persist(); });
+    const textoT = el('textarea', { placeholder: 'Cole aqui ingredientes e modo de preparo…', style: 'min-height:90px' });
+    textoT.value = r.texto || '';
+    textoT.addEventListener('input', () => { r.texto = textoT.value; persist(); });
+
+    const fotosWrap = el('div', { class: 'fotos' });
+    const desenharFotos = () => {
+      fotosWrap.innerHTML = '';
+      r.fotos = r.fotos || [];
+      r.fotos.forEach((src, fi) => fotosWrap.appendChild(el('div', { class: 'foto' },
+        el('img', { src }), el('button', { class: 'x', onclick: () => { r.fotos.splice(fi, 1); persist(); desenharFotos(); } }, '×'))));
+    };
+    desenharFotos();
+    const inputFoto = el('input', { type: 'file', accept: 'image/*', multiple: true, style: 'display:none' });
+    inputFoto.addEventListener('change', e => {
+      const files = Array.from(e.target.files || []);
+      files.forEach(f => { if (f.size > 6 * 1024 * 1024) { toast('Foto muito grande (máx 6MB).', 'erro'); return; }
+        comprimirImagem(f, 1100, url => { r.fotos.push(url); persist(); desenharFotos(); }); });
+      inputFoto.value = '';
+    });
+
+    return el('div', { class: 'sub-card' },
+      el('div', { class: 'row between' }, el('div', { class: 'field grow' }, tituloI),
+        el('button', { class: 'btn btn-danger btn-sm', style: 'margin-left:8px', onclick: onRemove }, 'remover')),
+      el('div', { class: 'field mt-s' }, textoT),
+      fotosWrap,
+      el('button', { class: 'btn btn-soft btn-sm mt-s', onclick: () => inputFoto.click() }, '📷 Anexar fotos'), inputFoto);
+  }
+
+  /* ----------------------------------------------------- render de retorno */
+  function renderRetorno(dieta, persist) {
+    const ret = dieta.retorno;
+    const semChk = el('input', { type: 'checkbox' }); if (ret.semRetorno) semChk.checked = true;
+    const dataI = el('input', { type: 'date', value: ret.data || '' });
+    const bloco = el('div', { class: 'form-grid', style: ret.semRetorno ? 'opacity:.5;pointer-events:none' : '' });
+
+    const sugestoes = el('div', { class: 'chip-row mt-s' });
+    [['Em 30 dias', 30], ['Em 45 dias', 45], ['Em 60 dias', 60], ['Em 90 dias', 90]].forEach(([lab, dias]) => {
+      sugestoes.appendChild(el('button', { class: 'chip', onclick: () => {
+        const d = new Date(); d.setDate(d.getDate() + dias);
+        ret.data = d.toISOString().slice(0, 10); dataI.value = ret.data; persist();
+      } }, lab));
+    });
+
+    dataI.addEventListener('input', () => { ret.data = dataI.value; persist(); });
+    semChk.addEventListener('change', () => { ret.semRetorno = semChk.checked; bloco.style.cssText = ret.semRetorno ? 'opacity:.5;pointer-events:none' : ''; persist(); });
+
+    bloco.appendChild(el('div', { class: 'field half' }, el('label', null, 'Sugestão de data de retorno'), dataI));
+    bloco.appendChild(el('div', { class: 'field full' }, sugestoes));
+
+    return el('div', null,
+      el('label', { class: 'switch' }, semChk, el('span', null, ' Este paciente não precisa de retorno programado')),
+      bloco,
+      el('div', { class: 'ajuda mt-s' }, 'No PDF entra automaticamente um aviso pedindo que o paciente entre em contato pelo WhatsApp após 2 semanas para ajustes do que não se adaptou.'));
   }
 
   /* --------------------------------------------------- render de refeição */
@@ -2136,14 +2363,68 @@ const App = (() => {
     if (!window.jspdf) { toast('Biblioteca de PDF não carregou.', 'erro'); return; }
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-    let y = pdfHeader(doc, 'Plano alimentar', (dieta.nomePaciente || 'Paciente') + '  ·  ' + new Date().toLocaleDateString('pt-BR'));
+    const cfg = state.config || {};
+    const W = 210, H = 297;
+    const C = { marrom: [74, 60, 44], marromEsc: [52, 42, 30], creme: [246, 241, 233], bege: [231, 219, 201], accent: [154, 123, 82], texto: [60, 49, 34], suave: [120, 102, 78] };
+    const nome = dieta.nomePaciente || 'Paciente';
+    const dataConsulta = new Date(dieta.createdAt || Date.now()).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+
+    /* ===================== CAPA ===================== */
+    // fundo creme
+    doc.setFillColor(...C.creme); doc.rect(0, 0, W, H, 'F');
+    // arte anexada (se houver) ocupa metade superior com leve sobreposição
+    if (cfg.capa) {
+      try {
+        doc.addImage(cfg.capa, 'JPEG', 0, 0, W, 150);
+        // faixa creme degradê falso por cima da junção
+        doc.setFillColor(...C.creme); doc.rect(0, 150, W, H - 150, 'F');
+      } catch (e) { /* imagem inválida, segue sem */ }
+    } else {
+      // capa decorativa vetorial elegante
+      doc.setFillColor(...C.marrom); doc.rect(0, 0, W, 150, 'F');
+      doc.setFillColor(...C.accent); doc.circle(W - 38, 42, 30, 'F');
+      doc.setDrawColor(...C.bege); doc.setLineWidth(0.6);
+      for (let i = 0; i < 5; i++) doc.line(20, 120 + i * 4, 70, 120 + i * 4);
+    }
+
+    // monograma / logo
+    if (cfg.logo) {
+      try { doc.addImage(cfg.logo, 'JPEG', W / 2 - 16, 168, 32, 32); } catch (e) {}
+    } else {
+      doc.setDrawColor(...C.accent); doc.setLineWidth(0.8); doc.circle(W / 2, 184, 14);
+      doc.setTextColor(...C.marrom); doc.setFont('times', 'bold'); doc.setFontSize(22);
+      doc.text('N', W / 2, 189, { align: 'center' });
+    }
+
+    // título
+    doc.setTextColor(...C.suave); doc.setFont('helvetica', 'normal'); doc.setFontSize(11);
+    doc.text('PLANO ALIMENTAR PERSONALIZADO', W / 2, 214, { align: 'center', charSpace: 1.5 });
+    doc.setTextColor(...C.marromEsc); doc.setFont('times', 'bold'); doc.setFontSize(30);
+    doc.text(nome, W / 2, 230, { align: 'center', maxWidth: W - 40 });
+
+    // linha + data
+    doc.setDrawColor(...C.accent); doc.setLineWidth(0.5); doc.line(W / 2 - 22, 238, W / 2 + 22, 238);
+    doc.setTextColor(...C.suave); doc.setFont('helvetica', 'normal'); doc.setFontSize(12);
+    doc.text('Consulta em ' + dataConsulta, W / 2, 248, { align: 'center' });
+
+    // assinatura profissional no rodapé da capa
+    doc.setTextColor(...C.marrom); doc.setFont('times', 'italic'); doc.setFontSize(14);
+    doc.text(cfg.nome || 'Nutrição', W / 2, 272, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...C.suave);
+    const credLinha = [cfg.crn ? 'CRN ' + cfg.crn : null, cfg.especialidade].filter(Boolean).join('  ·  ');
+    if (credLinha) doc.text(credLinha, W / 2, 278, { align: 'center' });
+
+    /* ===================== CONTEÚDO ===================== */
+    doc.addPage();
+    let y = pdfHeader(doc, 'Plano alimentar', nome + '  ·  ' + dataConsulta);
 
     if (dieta.meta && dieta.meta.kcal) {
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(110, 92, 68);
       const meta = dieta.meta;
-      doc.text('Meta diária: ' + meta.kcal + ' kcal' +
-        (meta.ptn ? '  ·  PTN ' + meta.ptn + 'g' : '') + (meta.cho ? '  ·  CHO ' + meta.cho + 'g' : '') + (meta.lip ? '  ·  LIP ' + meta.lip + 'g' : ''), 14, y);
-      y += 6;
+      doc.setFillColor(...C.bege); doc.roundedRect(14, y - 1, W - 28, 9, 1.5, 1.5, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(...C.marrom);
+      doc.text('META DIÁRIA:  ' + meta.kcal + ' kcal' +
+        (meta.ptn ? '   ·   PTN ' + meta.ptn + 'g' : '') + (meta.cho ? '   ·   CHO ' + meta.cho + 'g' : '') + (meta.lip ? '   ·   LIP ' + meta.lip + 'g' : ''), 18, y + 4.5);
+      y += 14;
     }
 
     let totalKcal = 0;
@@ -2156,31 +2437,131 @@ const App = (() => {
         return [it.nome, fmt(it.g, 0) + ' g', medidas, fmt(k, 0) + ' kcal'];
       });
       if (y > 250) { doc.addPage(); y = 18; }
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(74, 60, 44);
-      doc.text(m.nome + '   ·   ' + fmt(mk, 0) + ' kcal', 14, y);
+      // cabeçalho da refeição com faixa
+      doc.setFillColor(...C.marrom); doc.roundedRect(14, y, W - 28, 8, 1.5, 1.5, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...C.creme);
+      doc.text(m.nome, 18, y + 5.5);
+      doc.setFontSize(9); doc.text(fmt(mk, 0) + ' kcal', W - 18, y + 5.5, { align: 'right' });
       doc.autoTable({
-        startY: y + 2, head: [['Alimento', 'Quantidade', 'Medida caseira', 'Energia']], body,
-        theme: 'striped', styles: { fontSize: 9.5, cellPadding: 2.2, textColor: [60, 49, 34] },
-        headStyles: { fillColor: [74, 60, 44], textColor: [246, 238, 223], fontSize: 9 },
+        startY: y + 9, head: [['Alimento', 'Quantidade', 'Medida caseira', 'Energia']], body,
+        theme: 'striped', styles: { fontSize: 9.5, cellPadding: 2.4, textColor: C.texto },
+        headStyles: { fillColor: C.bege, textColor: C.marrom, fontSize: 8.5, fontStyle: 'bold' },
         alternateRowStyles: { fillColor: [251, 247, 240] },
         columnStyles: { 1: { halign: 'right', cellWidth: 26 }, 2: { cellWidth: 50 }, 3: { halign: 'right', cellWidth: 24 } },
         margin: { left: 14, right: 14 },
       });
-      y = doc.lastAutoTable.finalY + 5;
+      y = doc.lastAutoTable.finalY + 6;
     });
 
-    if (y > 260) { doc.addPage(); y = 18; }
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(74, 60, 44);
-    doc.text('Total do dia: ' + fmt(totalKcal, 0) + ' kcal', 14, y); y += 7;
+    if (y > 262) { doc.addPage(); y = 18; }
+    doc.setFillColor(...C.accent); doc.roundedRect(14, y, W - 28, 9, 1.5, 1.5, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(255, 255, 255);
+    doc.text('TOTAL DO DIA', 18, y + 6); doc.text(fmt(totalKcal, 0) + ' kcal', W - 18, y + 6, { align: 'right' });
+    y += 14;
 
+    /* ----- Suplementação ----- */
+    const sups = (dieta.suplementos || []).filter(s => s.nome || (s.ativos && s.ativos.length));
+    if (sups.length) {
+      if (y > 245) { doc.addPage(); y = 18; }
+      y = tituloSecao(doc, 'Suplementação', y, C);
+      sups.forEach(s => {
+        const linhas = [];
+        if (s.quantidade) linhas.push(['Quantidade', s.quantidade]);
+        if (s.comoUsar) linhas.push(['Como usar', s.comoUsar]);
+        if (s.duracao) linhas.push(['Duração', s.duracao]);
+        if (s.manipulado && s.ativos && s.ativos.length) {
+          const ativos = s.ativos.filter(a => a.nome).map(a => '• ' + a.nome + (a.dose ? ' — ' + a.dose : '')).join('\n');
+          if (ativos) linhas.push(['Ativos da fórmula', ativos]);
+        }
+        if (y > 255) { doc.addPage(); y = 18; }
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.setTextColor(...C.marrom);
+        doc.text((s.manipulado ? '⚗ ' : '• ') + (s.nome || 'Suplemento'), 14, y); y += 1.5;
+        doc.autoTable({
+          startY: y + 1, body: linhas, theme: 'plain',
+          styles: { fontSize: 9.5, cellPadding: 1.8, textColor: C.texto, overflow: 'linebreak' },
+          columnStyles: { 0: { fontStyle: 'bold', cellWidth: 38, textColor: C.suave } },
+          margin: { left: 16, right: 14 },
+        });
+        y = doc.lastAutoTable.finalY + 5;
+      });
+    }
+
+    /* ----- Receitas ----- */
+    const recs = (dieta.receitas || []).filter(r => r.titulo || r.texto || (r.fotos && r.fotos.length));
+    if (recs.length) {
+      if (y > 240) { doc.addPage(); y = 18; }
+      y = tituloSecao(doc, 'Receitas', y, C);
+      recs.forEach(r => {
+        if (y > 250) { doc.addPage(); y = 18; }
+        if (r.titulo) { doc.setFont('times', 'bold'); doc.setFontSize(13); doc.setTextColor(...C.marrom); doc.text(r.titulo, 14, y); y += 6; }
+        if (r.texto) {
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(...C.texto);
+          const linhas = doc.splitTextToSize(r.texto, W - 32);
+          linhas.forEach(ln => { if (y > 280) { doc.addPage(); y = 18; } doc.text(ln, 16, y); y += 5; });
+          y += 1;
+        }
+        // fotos: até 2 por linha
+        const fotos = (r.fotos || []);
+        for (let i = 0; i < fotos.length; i++) {
+          const col = i % 2, fw = 86, fh = 60;
+          const x = 16 + col * (fw + 8);
+          if (col === 0 && y + fh > 285) { doc.addPage(); y = 18; }
+          try { doc.addImage(fotos[i], 'JPEG', x, y, fw, fh); } catch (e) {}
+          if (col === 1 || i === fotos.length - 1) y += fh + 6;
+        }
+        y += 3;
+      });
+    }
+
+    /* ----- Aviso de acompanhamento + retorno ----- */
+    if (y > 235) { doc.addPage(); y = 18; }
+    y = tituloSecao(doc, 'Acompanhamento', y, C);
+    const wpp = (cfg.contato || '').trim();
+    const avisoTxt =
+      'Após 2 semanas do início do plano, entre em contato pelo WhatsApp' + (wpp ? ' (' + wpp + ')' : '') +
+      ' para solicitarmos qualquer atualização ou ajuste de algo que não tenha se adaptado à sua rotina. ' +
+      'Pequenas adaptações fazem parte do processo e ajudam a manter a adesão ao plano.';
+    doc.setFillColor(251, 247, 240); 
+    const avisoLinhas = doc.splitTextToSize(avisoTxt, W - 36);
+    const boxH = avisoLinhas.length * 5 + 8;
+    doc.roundedRect(14, y, W - 28, boxH, 2, 2, 'F');
+    doc.setDrawColor(...C.accent); doc.setLineWidth(1.2); doc.line(15.2, y + 2, 15.2, y + boxH - 2);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(...C.texto);
+    doc.text(avisoLinhas, 19, y + 6);
+    y += boxH + 6;
+
+    const ret = dieta.retorno || {};
+    if (!ret.semRetorno && ret.data) {
+      const dret = new Date(ret.data + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.setTextColor(...C.marrom);
+      doc.text('Sugestão de retorno:  ' + dret, 14, y); y += 6;
+    } else if (ret.semRetorno) {
+      doc.setFont('helvetica', 'italic'); doc.setFontSize(10); doc.setTextColor(...C.suave);
+      doc.text('Retorno conforme necessidade — agende quando sentir que precisa de novos ajustes.', 14, y); y += 6;
+    }
+
+    /* ----- Observações gerais ----- */
     if (dieta.obs) {
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text('Orientações', 14, y); y += 2;
-      doc.autoTable({ startY: y, body: [[dieta.obs]], theme: 'plain', styles: { fontSize: 10, textColor: [60, 49, 34], cellPadding: 2 }, margin: { left: 14, right: 14 } });
+      if (y > 255) { doc.addPage(); y = 18; }
+      y = tituloSecao(doc, 'Observações gerais', y, C);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(...C.texto);
+      const linhas = doc.splitTextToSize(dieta.obs, W - 32);
+      linhas.forEach(ln => { if (y > 282) { doc.addPage(); y = 18; } doc.text(ln, 16, y); y += 5; });
     }
 
     rodapePaginas(doc);
-    doc.save('Plano_' + (dieta.nomePaciente || 'paciente').replace(/\s+/g, '_') + '.pdf');
+    doc.save('Plano_' + nome.replace(/\s+/g, '_') + '.pdf');
     toast('Plano alimentar exportado.');
+  }
+
+  // título de seção com filete, retorna novo y
+  function tituloSecao(doc, txt, y, C) {
+    doc.setFont('times', 'bold'); doc.setFontSize(15); doc.setTextColor(...C.marromEsc);
+    doc.text(txt, 14, y);
+    doc.setDrawColor(...C.bege); doc.setLineWidth(0.5);
+    const w = doc.getTextWidth(txt);
+    doc.line(14 + w + 6, y - 1.5, 196, y - 1.5);
+    return y + 8;
   }
 
   /* ====================================================================== */
@@ -2199,12 +2580,19 @@ const App = (() => {
       if (!arr.length) { lista.appendChild(el('div', { class: 'empty' }, el('p', null, 'Nenhum paciente encontrado.'))); return; }
       arr.forEach(p => {
         const consultas = ats.filter(a => a.pacienteId === p.id);
+        const acoes = el('div', { class: 'row-actions' });
+        if (p.telefone) {
+          acoes.appendChild(el('a', { class: 'icon-btn wpp', href: waLink(p.telefone), target: '_blank', title: 'Enviar WhatsApp',
+            onclick: e => e.stopPropagation() }, '🟢 WhatsApp'));
+        }
+        acoes.appendChild(el('button', { class: 'icon-btn', title: 'Exportar dados do paciente',
+          onclick: e => { e.stopPropagation(); exportarPacientePDF(p, consultas); } }, '⬇ Exportar'));
         lista.appendChild(el('div', { class: 'list-row', onclick: () => abrirPaciente(p, consultas) },
           el('div', { class: 'avatar' }, (p.nome[0] || '?').toUpperCase()),
           el('div', { class: 'grow' },
             el('div', { class: 'nome' }, p.nome),
-            el('div', { class: 'meta' }, [p.sexo, p.nascimento ? Calc.idade(p.nascimento) + ' anos' : null, consultas.length + ' atendimento' + (consultas.length === 1 ? '' : 's')].filter(Boolean).join(' · '))),
-          el('span', { class: 'pill' }, 'ver')));
+            el('div', { class: 'meta' }, [p.sexo, p.nascimento ? Calc.idade(p.nascimento) + ' anos' : null, p.telefone || null, consultas.length + ' atendimento' + (consultas.length === 1 ? '' : 's')].filter(Boolean).join(' · '))),
+          acoes));
       });
     };
     const busca = el('input', { placeholder: 'Buscar paciente…', style: 'max-width:340px;padding:10px 14px;border:1px solid var(--linha-2);border-radius:100px;background:var(--surface)' });
@@ -2221,6 +2609,13 @@ const App = (() => {
     modal((box, close) => {
       box.appendChild(el('h3', null, p.nome));
       box.appendChild(el('div', { class: 'sub' }, [p.sexo, p.nascimento ? Calc.idade(p.nascimento) + ' anos' : null, p.telefone, p.email].filter(Boolean).join(' · ')));
+
+      // ações rápidas
+      const quick = el('div', { class: 'row', style: 'gap:8px;flex-wrap:wrap;margin:4px 0 10px' });
+      if (p.telefone) quick.appendChild(el('a', { class: 'btn btn-soft btn-sm', href: waLink(p.telefone), target: '_blank' }, '🟢 WhatsApp'));
+      quick.appendChild(el('button', { class: 'btn btn-soft btn-sm', onclick: () => exportarPacientePDF(p, consultas) }, '⬇ Exportar dados (PDF)'));
+      box.appendChild(quick);
+
       if (!consultas.length) box.appendChild(el('div', { class: 'muted' }, 'Sem atendimentos.'));
       else {
         const lista = el('div', { class: 'pick-list' });
@@ -2240,6 +2635,56 @@ const App = (() => {
         } }, 'Excluir'),
         el('button', { class: 'btn btn-ghost', onclick: close }, 'Fechar')));
     });
+  }
+
+  /* gera link do WhatsApp (wa.me) a partir de um telefone com DDD */
+  function waLink(tel, msg) {
+    let d = String(tel || '').replace(/\D/g, '');
+    if (d.length <= 11) d = '55' + d;        // assume Brasil se não tiver código do país
+    const base = 'https://wa.me/' + d;
+    return msg ? base + '?text=' + encodeURIComponent(msg) : base;
+  }
+
+  /* exporta um dossiê do paciente em PDF (identificação + histórico de atendimentos) */
+  function exportarPacientePDF(p, consultas) {
+    if (!window.jspdf) { toast('Biblioteca de PDF não carregou.', 'erro'); return; }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    let y = pdfHeader(doc, 'Ficha do paciente', p.nome + '  ·  ' + new Date().toLocaleDateString('pt-BR'));
+
+    doc.autoTable({
+      startY: y + 2, theme: 'plain',
+      styles: { fontSize: 10, cellPadding: 1.6, textColor: [60, 49, 34] },
+      body: [
+        ['Nome', p.nome || '—', 'Idade', p.nascimento ? Calc.idade(p.nascimento) + ' anos' : '—'],
+        ['Sexo', p.sexo || '—', 'Telefone', p.telefone || '—'],
+        ['E-mail', p.email || '—', 'Cidade/UF', p.cidade_uf || '—'],
+      ],
+      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 24 }, 2: { fontStyle: 'bold', cellWidth: 24 } },
+    });
+    y = doc.lastAutoTable.finalY + 6;
+
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(74, 60, 44);
+    doc.text('Histórico de atendimentos', 14, y); y += 2;
+    const linhas = consultas
+      .sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''))
+      .map(a => [
+        a.createdAt ? new Date(a.createdAt).toLocaleDateString('pt-BR') : '—',
+        FORM_SCHEMAS[a.tipo] ? FORM_SCHEMAS[a.tipo].nome : a.tipo,
+        a.calc ? fmt(a.calc.meta.alvo, 0) + ' kcal' : '—',
+        a.calc && a.calc.imc != null ? fmt(a.calc.imc, 1) : '—',
+      ]);
+    doc.autoTable({
+      startY: y + 2, head: [['Data', 'Tipo de consulta', 'Meta calórica', 'IMC']],
+      body: linhas.length ? linhas : [['—', 'Sem atendimentos', '—', '—']],
+      theme: 'striped', styles: { fontSize: 9.5, cellPadding: 2.2, textColor: [60, 49, 34] },
+      headStyles: { fillColor: [74, 60, 44], textColor: [246, 238, 223], fontSize: 9 },
+      alternateRowStyles: { fillColor: [251, 247, 240] }, margin: { left: 14, right: 14 },
+    });
+
+    rodapePaginas(doc);
+    doc.save('Ficha_' + (p.nome || 'paciente').replace(/\s+/g, '_') + '.pdf');
+    toast('Ficha do paciente exportada.');
   }
 
   /* ====================================================================== */
@@ -2271,31 +2716,95 @@ const App = (() => {
   /* ====================================================================== */
   function rotaConfig() {
     const cfg = state.config || { id: 'perfil' };
+    cfg.id = cfg.id || 'perfil';
     const campo = (lab, key, ph) => {
       const i = el('input', { placeholder: ph || '', value: cfg[key] || '' });
-      i.addEventListener('input', () => { cfg[key] = i.value; debouncedSave(COLECOES.CFG, cfg, 600); });
+      i.addEventListener('input', () => { cfg[key] = i.value; });
       return el('div', { class: 'field half' }, el('label', null, lab), i);
     };
+
+    // ----- upload de imagem (logo e arte de capa) guardado como data URL
+    const previewLogo = el('div', { class: 'img-preview' });
+    const previewCapa = el('div', { class: 'img-preview wide' });
+    const desenharPreviews = () => {
+      previewLogo.innerHTML = ''; previewCapa.innerHTML = '';
+      previewLogo.appendChild(cfg.logo ? el('img', { src: cfg.logo, alt: 'logo' }) : el('span', { class: 'ph' }, 'sem logo'));
+      previewCapa.appendChild(cfg.capa ? el('img', { src: cfg.capa, alt: 'capa' }) : el('span', { class: 'ph' }, 'sem arte de capa'));
+    };
+    const lerImagem = (file, key, max) => {
+      if (!file) return;
+      if (file.size > 4 * 1024 * 1024) { toast('Imagem muito grande (máx. 4MB).', 'erro'); return; }
+      comprimirImagem(file, max || 1000, dataUrl => { cfg[key] = dataUrl; desenharPreviews(); toast('Imagem carregada. Clique em salvar.'); });
+    };
+    const inputLogo = el('input', { type: 'file', accept: 'image/*', style: 'display:none' });
+    inputLogo.addEventListener('change', e => lerImagem(e.target.files[0], 'logo', 400));
+    const inputCapa = el('input', { type: 'file', accept: 'image/*', style: 'display:none' });
+    inputCapa.addEventListener('change', e => lerImagem(e.target.files[0], 'capa', 1400));
+    desenharPreviews();
+
+    const btnSalvar = el('button', { class: 'btn btn-primary', onclick: async () => {
+      const saved = await Store.save(COLECOES.CFG, cfg);
+      state.config = saved;
+      toast('Informações salvas com sucesso.'); marcarSalvo();
+    } }, '💾 Salvar / atualizar informações');
+
     shell('/config',
       pageHead('Configurações', 'Seu perfil profissional',
-        'Esses dados aparecem no cabeçalho dos relatórios e planos em PDF que você entrega ao paciente.'),
-      el('div', { class: 'row between mb' }, el('div', { class: 'save-state', id: 'save-state' }, el('span', { class: 'dot' }), 'salvo automaticamente'), ''),
+        'Esses dados aparecem no cabeçalho e na capa dos relatórios e planos em PDF que você entrega ao paciente.'),
       el('div', { class: 'card card-pad' },
         el('div', { class: 'form-grid' },
           campo('Nome completo', 'nome', 'ex.: Dra. Ana Nutricionista'),
           campo('CRN', 'crn', 'ex.: 12345/P'),
           campo('Especialidade / título', 'especialidade', 'ex.: Nutrição clínica e estética'),
-          campo('Telefone / WhatsApp', 'contato', ''),
+          campo('Telefone / WhatsApp (com DDD)', 'contato', 'ex.: 65 99999-9999'),
           campo('E-mail profissional', 'email', ''),
           campo('Instagram / site', 'instagram', '@seuperfil'))),
+
+      el('div', { class: 'section-title mt' }, el('span', { class: 'idx' }, '🎨'), el('h2', null, 'Identidade visual dos PDFs'), el('span', { class: 'rule' })),
+      el('div', { class: 'card card-pad' },
+        el('div', { class: 'img-fields' },
+          el('div', null,
+            el('label', { class: 'lbl' }, 'Logo (aparece no topo dos PDFs)'),
+            previewLogo,
+            el('button', { class: 'btn btn-soft btn-sm mt-s', onclick: () => inputLogo.click() }, 'Escolher imagem'),
+            cfg.logo ? el('button', { class: 'btn btn-ghost btn-sm mt-s', onclick: () => { cfg.logo = null; desenharPreviews(); } }, 'remover') : null,
+            inputLogo),
+          el('div', null,
+            el('label', { class: 'lbl' }, 'Arte de capa (fundo da capa do plano alimentar)'),
+            previewCapa,
+            el('button', { class: 'btn btn-soft btn-sm mt-s', onclick: () => inputCapa.click() }, 'Escolher arte'),
+            cfg.capa ? el('button', { class: 'btn btn-ghost btn-sm mt-s', onclick: () => { cfg.capa = null; desenharPreviews(); } }, 'remover') : null,
+            inputCapa)),
+        el('div', { class: 'ajuda mt-s' }, 'Dica: use imagens em alta resolução. A arte de capa fica melhor em formato retrato (vertical) ou quadrado.')),
+
+      el('div', { class: 'sticky-actions mt' }, btnSalvar,
+        el('div', { class: 'save-state', id: 'save-state', style: 'margin-left:auto' }, el('span', { class: 'dot' }), 'pronto')),
+
       el('div', { class: 'card card-pad mt' },
         el('h3', { style: 'margin-bottom:8px' }, 'Sobre o armazenamento'),
         el('p', { class: 'muted', style: 'font-size:13.5px' },
           Store.getMode() === 'cloud'
             ? 'Seus dados estão sendo salvos na nuvem (Firebase) e sincronizam entre dispositivos.'
-            : 'No momento os dados ficam salvos apenas neste navegador. Para sincronizar na nuvem, preencha o arquivo js/firebase-config.js (veja o README).')),
+            : 'No momento os dados ficam salvos apenas neste navegador. Para sincronizar na nuvem, preencha o FIREBASE_CONFIG no index.html (veja o README).')),
     );
     marcarSalvo();
+  }
+
+  /* comprime/redimensiona imagem no navegador para caber no banco (data URL JPEG) */
+  function comprimirImagem(file, maxLado, cb) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        let { width: w, height: h } = img;
+        if (Math.max(w, h) > maxLado) { const r = maxLado / Math.max(w, h); w = Math.round(w * r); h = Math.round(h * r); }
+        const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+        cv.getContext('2d').drawImage(img, 0, 0, w, h);
+        cb(cv.toDataURL('image/jpeg', 0.82));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
   }
 
   /* ---------------------------------------------------------------- início */
