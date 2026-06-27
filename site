@@ -1,0 +1,2514 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NutriConsulta — Plataforma Clínica</title>
+
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, orderBy, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  // =============================================
+  // 🔧 CONFIGURE SEU FIREBASE AQUI
+  // =============================================
+  const firebaseConfig = {
+    apiKey: "SUA_API_KEY",
+    authDomain: "SEU_PROJETO.firebaseapp.com",
+    projectId: "SEU_PROJETO_ID",
+    storageBucket: "SEU_PROJETO.appspot.com",
+    messagingSenderId: "SEU_SENDER_ID",
+    appId: "SEU_APP_ID"
+  };
+  // =============================================
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  window._db = db;
+  window._fbFns = { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, orderBy, getDoc };
+  window.dispatchEvent(new Event('firebaseReady'));
+</script>
+
+<!-- jsPDF for PDF generation -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Jost:wght@300;400;500&display=swap');
+
+:root {
+  --cream: #F5F0E8;
+  --beige: #E8DDD0;
+  --beige-mid: #D4C4B0;
+  --brown-light: #A08060;
+  --brown: #7A5C3E;
+  --brown-dark: #4A3525;
+  --text: #2E1F0F;
+  --text-mid: #6B5040;
+  --white: #FDFAF6;
+  --border: #C8B89A;
+  --success: #5C7A5E;
+  --error: #8B3A3A;
+  --shadow: 0 2px 20px rgba(74,53,37,0.08);
+  --radius: 8px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Jost', sans-serif;
+  background: var(--cream);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 14px;
+  font-weight: 300;
+}
+
+h1,h2,h3,h4,h5 {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+/* ─── NAVBAR ─── */
+.navbar {
+  background: var(--brown-dark);
+  padding: 0 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 60px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+}
+.navbar-brand {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 22px;
+  color: var(--beige);
+  letter-spacing: 0.08em;
+  font-weight: 300;
+}
+.navbar-brand span { color: var(--brown-light); }
+.nav-links { display: flex; gap: 8px; }
+.nav-btn {
+  background: none;
+  border: 1px solid transparent;
+  color: var(--beige-mid);
+  padding: 6px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: 'Jost', sans-serif;
+  font-size: 13px;
+  font-weight: 300;
+  letter-spacing: 0.05em;
+  transition: all 0.2s;
+}
+.nav-btn:hover, .nav-btn.active {
+  border-color: var(--brown-light);
+  color: var(--beige);
+  background: rgba(160,128,96,0.15);
+}
+
+/* ─── PAGES ─── */
+.page { display: none; padding: 32px; max-width: 1100px; margin: 0 auto; }
+.page.active { display: block; }
+
+/* ─── DASHBOARD ─── */
+.dashboard-hero {
+  text-align: center;
+  padding: 48px 0 32px;
+}
+.dashboard-hero h1 {
+  font-size: 42px;
+  color: var(--brown-dark);
+  margin-bottom: 8px;
+}
+.dashboard-hero p {
+  color: var(--text-mid);
+  font-size: 15px;
+  letter-spacing: 0.04em;
+}
+.consult-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+  margin: 32px 0;
+}
+.consult-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px 20px;
+  cursor: pointer;
+  transition: all 0.25s;
+  text-align: center;
+  box-shadow: var(--shadow);
+}
+.consult-card:hover {
+  border-color: var(--brown);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(74,53,37,0.14);
+}
+.consult-card .icon { font-size: 28px; margin-bottom: 12px; }
+.consult-card h3 { font-size: 16px; color: var(--brown-dark); margin-bottom: 6px; }
+.consult-card p { font-size: 12px; color: var(--text-mid); line-height: 1.5; }
+.section-title {
+  font-size: 26px;
+  color: var(--brown-dark);
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ─── PATIENT LIST ─── */
+.patient-row {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 20px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+.patient-row:hover { border-color: var(--brown); }
+.patient-row .info { flex: 1; }
+.patient-row .name { font-size: 15px; font-weight: 500; color: var(--brown-dark); }
+.patient-row .meta { font-size: 12px; color: var(--text-mid); margin-top: 2px; }
+.patient-row .actions { display: flex; gap: 8px; }
+
+/* ─── FORM ─── */
+.form-container {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px;
+  box-shadow: var(--shadow);
+}
+.form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+.form-header h2 { font-size: 28px; color: var(--brown-dark); }
+.form-header p { font-size: 13px; color: var(--text-mid); margin-top: 4px; }
+.form-section {
+  margin-bottom: 32px;
+}
+.form-section h4 {
+  font-size: 18px;
+  color: var(--brown);
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--beige);
+  letter-spacing: 0.04em;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+.form-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+.form-grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-group.full { grid-column: 1 / -1; }
+label {
+  font-size: 12px;
+  color: var(--text-mid);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 400;
+}
+label .req { color: var(--brown); }
+input, select, textarea {
+  border: 1px solid var(--border);
+  background: var(--cream);
+  border-radius: 4px;
+  padding: 9px 12px;
+  font-family: 'Jost', sans-serif;
+  font-size: 14px;
+  font-weight: 300;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.2s;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--brown);
+  background: var(--white);
+}
+textarea { resize: vertical; min-height: 80px; }
+select { cursor: pointer; }
+
+/* ─── CALC SECTION ─── */
+.calc-box {
+  background: var(--beige);
+  border: 1px solid var(--beige-mid);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-top: 12px;
+}
+.calc-box h4 { font-size: 18px; color: var(--brown-dark); margin-bottom: 16px; }
+.calc-results {
+  background: var(--brown-dark);
+  color: var(--beige);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin-top: 20px;
+  display: none;
+}
+.calc-results.show { display: block; }
+.calc-results h5 { font-family: 'Cormorant Garamond', serif; font-size: 20px; margin-bottom: 14px; color: var(--beige); }
+.result-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  font-size: 13px;
+}
+.result-row:last-child { border-bottom: none; }
+.result-row .label { color: var(--beige-mid); }
+.result-row .value { font-weight: 500; font-size: 15px; color: var(--white); }
+.result-row .badge {
+  background: var(--brown-light);
+  color: var(--white);
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+/* ─── BUTTONS ─── */
+.btn {
+  border: none;
+  border-radius: 4px;
+  padding: 10px 22px;
+  cursor: pointer;
+  font-family: 'Jost', sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  transition: all 0.2s;
+}
+.btn-primary {
+  background: var(--brown);
+  color: var(--white);
+}
+.btn-primary:hover { background: var(--brown-dark); }
+.btn-secondary {
+  background: var(--beige);
+  color: var(--brown-dark);
+  border: 1px solid var(--border);
+}
+.btn-secondary:hover { background: var(--beige-mid); }
+.btn-danger { background: var(--error); color: var(--white); }
+.btn-success { background: var(--success); color: var(--white); }
+.btn-pdf {
+  background: var(--brown-dark);
+  color: var(--beige);
+}
+.btn-pdf:hover { background: var(--brown); }
+.btn-sm { padding: 6px 14px; font-size: 12px; }
+
+.btn-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 28px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* ─── DIET PLANNER ─── */
+.diet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.meal-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+.meal-header {
+  background: var(--brown-dark);
+  color: var(--beige);
+  padding: 12px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+}
+.meal-header h4 { font-family: 'Cormorant Garamond', serif; font-size: 17px; }
+.meal-header .kcal-badge { font-size: 12px; color: var(--beige-mid); }
+.meal-body { padding: 16px; }
+.food-row {
+  display: grid;
+  grid-template-columns: 2fr 80px 80px 1fr 32px;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.food-row input { padding: 6px 8px; font-size: 13px; }
+.food-total {
+  text-align: right;
+  font-size: 12px;
+  color: var(--text-mid);
+  padding-top: 8px;
+  border-top: 1px solid var(--beige);
+}
+.add-food-btn {
+  background: none;
+  border: 1px dashed var(--border);
+  color: var(--text-mid);
+  border-radius: 4px;
+  padding: 7px 14px;
+  font-size: 12px;
+  cursor: pointer;
+  width: 100%;
+  font-family: 'Jost', sans-serif;
+  transition: all 0.2s;
+}
+.add-food-btn:hover { border-color: var(--brown); color: var(--brown); }
+.diet-summary {
+  background: var(--brown-dark);
+  color: var(--beige);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.diet-summary-item { text-align: center; }
+.diet-summary-item .sv { font-size: 22px; font-family: 'Cormorant Garamond', serif; }
+.diet-summary-item .sl { font-size: 11px; color: var(--beige-mid); letter-spacing: 0.05em; text-transform: uppercase; margin-top: 2px; }
+
+/* ─── TOAST ─── */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--brown-dark);
+  color: var(--beige);
+  padding: 12px 24px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  z-index: 9999;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.3s;
+  pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+
+/* ─── MODAL ─── */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(46,31,15,0.6);
+  z-index: 500;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: var(--white);
+  border-radius: var(--radius);
+  padding: 32px;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.modal h3 { font-size: 22px; color: var(--brown-dark); margin-bottom: 12px; }
+.modal p { color: var(--text-mid); margin-bottom: 20px; font-size: 14px; }
+
+/* ─── SEARCH ─── */
+.search-bar {
+  width: 100%;
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--white);
+  font-family: 'Jost', sans-serif;
+  font-size: 14px;
+  margin-bottom: 20px;
+  outline: none;
+  color: var(--text);
+}
+.search-bar:focus { border-color: var(--brown); }
+
+/* ─── TAGS ─── */
+.tag {
+  display: inline-block;
+  background: var(--beige);
+  color: var(--brown);
+  border: 1px solid var(--beige-mid);
+  border-radius: 20px;
+  padding: 2px 10px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  margin: 2px;
+}
+.tag.green { background: #E8F0E8; color: var(--success); border-color: #C0D4C0; }
+.tag.red { background: #F0E8E8; color: var(--error); border-color: #D4C0C0; }
+
+/* ─── MISC ─── */
+.empty-state {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--text-mid);
+}
+.empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+.empty-state h3 { font-size: 20px; margin-bottom: 8px; color: var(--brown); }
+.divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+.checkbox-group { display: flex; flex-wrap: wrap; gap: 8px; }
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--cream);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+.checkbox-item:hover { border-color: var(--brown); }
+.checkbox-item input[type=checkbox] { accent-color: var(--brown); }
+.radio-group { display: flex; flex-wrap: wrap; gap: 8px; }
+.radio-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--cream);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 7px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+.radio-item input[type=radio] { accent-color: var(--brown); }
+.info-badge {
+  display: inline-block;
+  background: var(--beige);
+  border: 1px solid var(--beige-mid);
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--text-mid);
+  margin-bottom: 8px;
+}
+@media (max-width: 768px) {
+  .form-grid { grid-template-columns: 1fr; }
+  .form-grid.cols-3, .form-grid.cols-2 { grid-template-columns: 1fr; }
+  .food-row { grid-template-columns: 1fr 70px 70px; }
+  .food-row input:nth-child(4), .food-row button { display: none; }
+  .page { padding: 16px; }
+  .navbar { padding: 0 16px; }
+  .consult-grid { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <div class="navbar-brand">Nutri<span>Consulta</span></div>
+  <div class="nav-links">
+    <button class="nav-btn active" onclick="showPage('dashboard')">Início</button>
+    <button class="nav-btn" onclick="showPage('pacientes')">Pacientes</button>
+    <button class="nav-btn" onclick="showPage('dieta')">Plano Alimentar</button>
+  </div>
+</nav>
+
+<!-- ════════════════════════════════ DASHBOARD ════════════════════════════════ -->
+<div id="page-dashboard" class="page active">
+  <div class="dashboard-hero">
+    <h1>Olá, Nutricionista 🌿</h1>
+    <p>Selecione o tipo de consulta para iniciar o atendimento</p>
+  </div>
+
+  <div class="consult-grid">
+    <div class="consult-card" onclick="startConsult('1a_consulta')">
+      <div class="icon">🌱</div>
+      <h3>1ª Consulta Padrão</h3>
+      <p>Anamnese completa · 45 min · Todos os perfis adultos</p>
+    </div>
+    <div class="consult-card" onclick="startConsult('2a_consulta')">
+      <div class="icon">📋</div>
+      <h3>2ª Consulta</h3>
+      <p>Acompanhamento · Revisão do plano · Evolução</p>
+    </div>
+    <div class="consult-card" onclick="startConsult('3a_consulta')">
+      <div class="icon">📈</div>
+      <h3>3ª Consulta</h3>
+      <p>Ajustes finos · Manutenção · Objetivos alcançados</p>
+    </div>
+    <div class="consult-card" onclick="startConsult('idosos')">
+      <div class="icon">🤍</div>
+      <h3>1ª Consulta Idosos</h3>
+      <p>Protocolo geriátrico · 60+ anos · IMC específico</p>
+    </div>
+    <div class="consult-card" onclick="startConsult('estetica')">
+      <div class="icon">✨</div>
+      <h3>Nutrição Estética</h3>
+      <p>Pele, cabelo, unhas · Composição corporal · Antioxidantes</p>
+    </div>
+  </div>
+
+  <h2 class="section-title">Últimos Atendimentos</h2>
+  <div id="recent-patients">
+    <div class="empty-state"><div class="icon">📂</div><h3>Nenhum atendimento ainda</h3><p>Inicie uma consulta acima para começar</p></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════ PACIENTES ════════════════════════════════ -->
+<div id="page-pacientes" class="page">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+    <h2 class="section-title" style="margin:0;border:none;">Pacientes</h2>
+  </div>
+  <input type="text" class="search-bar" placeholder="Buscar paciente por nome..." oninput="filterPatients(this.value)">
+  <div id="patient-list">
+    <div class="empty-state"><div class="icon">👤</div><h3>Nenhum paciente cadastrado</h3><p>Inicie uma consulta para cadastrar</p></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════ FORMULÁRIO ════════════════════════════════ -->
+<div id="page-form" class="page">
+  <div id="form-content"></div>
+</div>
+
+<!-- ════════════════════════════════ DIETA ════════════════════════════════ -->
+<div id="page-dieta" class="page">
+  <div class="diet-header">
+    <h2 class="section-title" style="margin:0;border:none;">Plano Alimentar</h2>
+    <div style="display:flex;gap:10px;">
+      <select id="diet-patient-select" onchange="loadPatientForDiet()" style="padding:8px 12px;">
+        <option value="">— Selecionar Paciente —</option>
+      </select>
+      <button class="btn btn-pdf" onclick="exportDietPDF()">⬇ Exportar PDF</button>
+    </div>
+  </div>
+
+  <div id="patient-diet-info" style="display:none;" class="form-container" style="margin-bottom:20px;">
+    <div class="form-grid cols-3">
+      <div><label>Paciente</label><div id="di-nome" style="font-size:16px;font-weight:500;color:var(--brown-dark);margin-top:4px;"></div></div>
+      <div><label>Meta Calórica (GET)</label><div id="di-get" style="font-size:16px;color:var(--brown);margin-top:4px;"></div></div>
+      <div><label>Meta Ajustada</label><div id="di-meta" style="font-size:16px;color:var(--success);margin-top:4px;"></div></div>
+    </div>
+    <div style="margin-top:12px;">
+      <label>Restrições / Preferências</label>
+      <div id="di-obs" style="font-size:13px;color:var(--text-mid);margin-top:4px;"></div>
+    </div>
+  </div>
+
+  <div class="diet-summary" id="diet-macro-bar">
+    <div class="diet-summary-item"><div class="sv" id="dm-kcal">0</div><div class="sl">kcal total</div></div>
+    <div class="diet-summary-item"><div class="sv" id="dm-cho">0g</div><div class="sl">Carboidratos</div></div>
+    <div class="diet-summary-item"><div class="sv" id="dm-ptn">0g</div><div class="sl">Proteínas</div></div>
+    <div class="diet-summary-item"><div class="sv" id="dm-lip">0g</div><div class="sl">Lipídios</div></div>
+    <div class="diet-summary-item"><div class="sv" id="dm-fiber">0g</div><div class="sl">Fibras</div></div>
+  </div>
+
+  <div id="meals-container"></div>
+
+  <button class="btn btn-secondary" onclick="addMeal()" style="width:100%;margin-bottom:16px;">+ Adicionar Refeição</button>
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="saveDiet()">💾 Salvar Plano</button>
+    <button class="btn btn-pdf" onclick="exportDietPDF()">📄 Exportar PDF para Paciente</button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════ TOAST ════════════════════════════════ -->
+<div id="toast" class="toast"></div>
+
+<!-- ════════════════════════════════ MODAL CONFIRM ════════════════════════════════ -->
+<div id="modal-overlay" class="modal-overlay">
+  <div class="modal">
+    <h3 id="modal-title">Confirmar</h3>
+    <p id="modal-msg"></p>
+    <div class="btn-row">
+      <button class="btn btn-danger" id="modal-confirm-btn">Confirmar</button>
+      <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════
+let currentConsultType = '';
+let currentPatientId = null;
+let allPatients = [];
+let mealsData = [];
+let db, fbFns;
+
+window.addEventListener('firebaseReady', () => {
+  db = window._db;
+  fbFns = window._fbFns;
+  loadAllPatients();
+});
+
+// ══════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  const btns = document.querySelectorAll('.nav-btn');
+  const labels = ['dashboard','pacientes','dieta'];
+  const idx = labels.indexOf(name);
+  if (idx >= 0) btns[idx].classList.add('active');
+  if (name === 'dieta') populateDietPatientSelect();
+}
+
+// ══════════════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════════════
+function toast(msg, dur=3000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
+}
+
+// ══════════════════════════════════════════════
+// MODAL
+// ══════════════════════════════════════════════
+let modalCb = null;
+function confirmModal(title, msg, cb) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-msg').textContent = msg;
+  modalCb = cb;
+  document.getElementById('modal-overlay').classList.add('show');
+  document.getElementById('modal-confirm-btn').onclick = () => { closeModal(); if(modalCb) modalCb(); };
+}
+function closeModal() { document.getElementById('modal-overlay').classList.remove('show'); }
+
+// ══════════════════════════════════════════════
+// FIREBASE HELPERS
+// ══════════════════════════════════════════════
+async function savePatient(data) {
+  if (!db) { toast('⚠️ Firebase não conectado. Configure o firebaseConfig.'); return null; }
+  try {
+    if (currentPatientId) {
+      const ref = fbFns.doc(db, 'pacientes', currentPatientId);
+      await fbFns.updateDoc(ref, { ...data, updatedAt: new Date().toISOString() });
+      toast('✅ Consulta atualizada!');
+      return currentPatientId;
+    } else {
+      const ref = await fbFns.addDoc(fbFns.collection(db, 'pacientes'), { ...data, createdAt: new Date().toISOString() });
+      toast('✅ Consulta salva!');
+      return ref.id;
+    }
+  } catch(e) {
+    console.error(e);
+    toast('❌ Erro ao salvar. Verifique o Firebase.');
+    return null;
+  }
+}
+
+async function loadAllPatients() {
+  if (!db) return;
+  try {
+    const q = fbFns.query(fbFns.collection(db, 'pacientes'), fbFns.orderBy('createdAt', 'desc'));
+    const snap = await fbFns.getDocs(q);
+    allPatients = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderPatientList(allPatients);
+    renderRecentPatients(allPatients.slice(0,3));
+  } catch(e) { console.error(e); }
+}
+
+async function deletePatient(id) {
+  if (!db) return;
+  try {
+    await fbFns.deleteDoc(fbFns.doc(db, 'pacientes', id));
+    toast('🗑 Paciente removido');
+    loadAllPatients();
+  } catch(e) { toast('❌ Erro ao remover'); }
+}
+
+// ══════════════════════════════════════════════
+// PATIENT LIST
+// ══════════════════════════════════════════════
+function renderPatientList(list) {
+  const el = document.getElementById('patient-list');
+  if (!list.length) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">👤</div><h3>Nenhum paciente</h3><p>Inicie uma consulta para cadastrar</p></div>';
+    return;
+  }
+  el.innerHTML = list.map(p => `
+    <div class="patient-row">
+      <div class="info" onclick="openPatient('${p.id}')">
+        <div class="name">${p.nome || 'Sem nome'}</div>
+        <div class="meta">
+          <span class="tag">${consultLabel(p.tipo)}</span>
+          ${p.idade ? `<span class="tag">${p.idade} anos</span>` : ''}
+          ${p.objetivo ? `<span class="tag green">${p.objetivo}</span>` : ''}
+          <span style="font-size:11px;color:var(--text-mid);margin-left:8px;">${formatDate(p.createdAt)}</span>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-secondary btn-sm" onclick="openPatient('${p.id}')">Ver</button>
+        <button class="btn btn-pdf btn-sm" onclick="generateConsultPDF('${p.id}')">PDF</button>
+        <button class="btn btn-danger btn-sm" onclick="confirmDeletePatient('${p.id}')">×</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderRecentPatients(list) {
+  const el = document.getElementById('recent-patients');
+  if (!list.length) return;
+  el.innerHTML = list.map(p => `
+    <div class="patient-row">
+      <div class="info" onclick="openPatient('${p.id}')">
+        <div class="name">${p.nome || 'Sem nome'}</div>
+        <div class="meta"><span class="tag">${consultLabel(p.tipo)}</span> ${formatDate(p.createdAt)}</div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-secondary btn-sm" onclick="openPatient('${p.id}')">Abrir</button>
+        <button class="btn btn-pdf btn-sm" onclick="generateConsultPDF('${p.id}')">PDF</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function filterPatients(v) {
+  const filtered = allPatients.filter(p => (p.nome||'').toLowerCase().includes(v.toLowerCase()));
+  renderPatientList(filtered);
+}
+
+function confirmDeletePatient(id) {
+  confirmModal('Remover paciente', 'Esta ação não pode ser desfeita.', () => deletePatient(id));
+}
+
+function consultLabel(tipo) {
+  const map = { '1a_consulta':'1ª Consulta', '2a_consulta':'2ª Consulta', '3a_consulta':'3ª Consulta', 'idosos':'Idosos', 'estetica':'Estética' };
+  return map[tipo] || tipo;
+}
+function formatDate(iso) {
+  if (!iso) return '';
+  try { return new Date(iso).toLocaleDateString('pt-BR'); } catch { return ''; }
+}
+
+async function openPatient(id) {
+  if (!db) return;
+  const ref = fbFns.doc(db, 'pacientes', id);
+  const snap = await fbFns.getDoc(ref);
+  if (!snap.exists()) return;
+  const data = { id: snap.id, ...snap.data() };
+  currentPatientId = id;
+  currentConsultType = data.tipo;
+  showPage('form');
+  renderForm(data.tipo, data);
+}
+
+// ══════════════════════════════════════════════
+// START CONSULT
+// ══════════════════════════════════════════════
+function startConsult(tipo) {
+  currentConsultType = tipo;
+  currentPatientId = null;
+  showPage('form');
+  renderForm(tipo, {});
+}
+
+// ══════════════════════════════════════════════
+// FORM RENDERER
+// ══════════════════════════════════════════════
+function renderForm(tipo, data) {
+  const el = document.getElementById('form-content');
+  const labels = { '1a_consulta':'1ª Consulta — Anamnese Completa', '2a_consulta':'2ª Consulta — Acompanhamento', '3a_consulta':'3ª Consulta — Reavaliação e Manutenção', 'idosos':'1ª Consulta — Protocolo Geriátrico', 'estetica':'Consulta de Nutrição Estética' };
+  const subs = { '1a_consulta':'Anamnese completa · 45 min', '2a_consulta':'Revisão do plano alimentar e evolução', '3a_consulta':'Ajustes e consolidação do tratamento', 'idosos':'Protocolo específico para pacientes 60+ anos', 'estetica':'Foco em pele, cabelo, unhas e composição corporal' };
+
+  let formHtml = `
+    <div class="form-container">
+      <div class="form-header">
+        <div>
+          <h2>${labels[tipo]}</h2>
+          <p>${subs[tipo]}</p>
+        </div>
+        <button class="btn btn-secondary" onclick="showPage('dashboard')">← Voltar</button>
+      </div>
+  `;
+
+  formHtml += formSectionIdentificacao(data);
+
+  if (tipo === '1a_consulta') formHtml += form1aConsulta(data);
+  else if (tipo === '2a_consulta') formHtml += form2aConsulta(data);
+  else if (tipo === '3a_consulta') formHtml += form3aConsulta(data);
+  else if (tipo === 'idosos') formHtml += formIdosos(data);
+  else if (tipo === 'estetica') formHtml += formEstetica(data);
+
+  formHtml += formCalculoSection(data, tipo);
+  formHtml += formObjetivosSection(data);
+
+  formHtml += `
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="submitForm('${tipo}')">💾 Salvar Consulta</button>
+        <button class="btn btn-pdf" onclick="triggerPDF('${tipo}')">📄 Gerar Relatório PDF</button>
+        <button class="btn btn-success" onclick="goToDietFromForm()">🥗 Abrir Plano Alimentar</button>
+        <button class="btn btn-secondary" onclick="showPage('dashboard')">Cancelar</button>
+      </div>
+    </div>
+  `;
+  el.innerHTML = formHtml;
+  if (data && Object.keys(data).length > 0) fillForm(data);
+}
+
+// ─── IDENTIFICAÇÃO (COMUM A TODOS) ───
+function formSectionIdentificacao(d) {
+  return `
+  <div class="form-section">
+    <h4>📋 Identificação do Paciente</h4>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Nome Completo <span class="req">*</span></label>
+        <input id="f-nome" type="text" placeholder="Nome do paciente" required>
+      </div>
+      <div class="form-group">
+        <label>Data de Nascimento <span class="req">*</span></label>
+        <input id="f-dtnasc" type="date">
+      </div>
+      <div class="form-group">
+        <label>Idade <span class="req">*</span></label>
+        <input id="f-idade" type="number" placeholder="Anos" min="0" max="120">
+      </div>
+      <div class="form-group">
+        <label>Sexo <span class="req">*</span></label>
+        <select id="f-sexo">
+          <option value="">Selecione</option>
+          <option value="F">Feminino</option>
+          <option value="M">Masculino</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Telefone / WhatsApp</label>
+        <input id="f-tel" type="tel" placeholder="(xx) xxxxx-xxxx">
+      </div>
+      <div class="form-group">
+        <label>E-mail</label>
+        <input id="f-email" type="email" placeholder="email@exemplo.com">
+      </div>
+      <div class="form-group">
+        <label>Profissão</label>
+        <input id="f-profissao" type="text" placeholder="Profissão atual">
+      </div>
+      <div class="form-group">
+        <label>Cidade / Estado</label>
+        <input id="f-cidade" type="text" placeholder="Cidade, UF">
+      </div>
+    </div>
+  </div>`;
+}
+
+// ─── 1ª CONSULTA PADRÃO ───
+function form1aConsulta(d) {
+  return `
+  <div class="form-section">
+    <h4>🏥 Queixa Principal e Histórico</h4>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>Queixa Principal / Motivo da Consulta <span class="req">*</span></label>
+        <textarea id="f-queixa" placeholder="Descreva o motivo principal da consulta..."></textarea>
+      </div>
+      <div class="form-group full">
+        <label>Histórico de Saúde / Doenças Crônicas</label>
+        <textarea id="f-historico" placeholder="Diabetes, hipertensão, dislipidemia, hipotireoidismo, SOP..."></textarea>
+      </div>
+      <div class="form-group full">
+        <label>Histórico Familiar de Doenças</label>
+        <textarea id="f-hist_familiar" placeholder="Doenças cardiovasculares, câncer, diabetes na família..."></textarea>
+      </div>
+      <div class="form-group full">
+        <label>Cirurgias / Internações Anteriores</label>
+        <textarea id="f-cirurgias" placeholder="Descreva se houver..."></textarea>
+      </div>
+      <div class="form-group full">
+        <label>Medicamentos em Uso</label>
+        <textarea id="f-medicamentos" placeholder="Nome do medicamento, dose, frequência..."></textarea>
+      </div>
+      <div class="form-group full">
+        <label>Suplementos em Uso</label>
+        <textarea id="f-suplementos" placeholder="Whey, creatina, vitaminas, colágeno..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Alergias / Intolerâncias Alimentares</label>
+        <input id="f-alergias" type="text" placeholder="Lactose, glúten, amendoim...">
+      </div>
+      <div class="form-group">
+        <label>Exames Laboratoriais Recentes</label>
+        <input id="f-exames" type="text" placeholder="Glicemia, colesterol, hemograma...">
+      </div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <h4>🍽️ Hábitos Alimentares</h4>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Horário do Desjejum</label>
+        <input id="f-h_cafe" type="time">
+      </div>
+      <div class="form-group">
+        <label>Número de Refeições por Dia</label>
+        <select id="f-n_refeicoes">
+          <option value="">Selecione</option>
+          ${[1,2,3,4,5,6,7].map(n=>`<option value="${n}">${n} refeições</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Come fora de casa com frequência?</label>
+        <select id="f-come_fora">
+          <option value="">Selecione</option>
+          <option>Nunca</option>
+          <option>Raramente (1x/mês)</option>
+          <option>Às vezes (1-2x/semana)</option>
+          <option>Frequentemente (3+x/semana)</option>
+          <option>Quase sempre</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Quem prepara as refeições?</label>
+        <select id="f-quem_cozinha">
+          <option value="">Selecione</option>
+          <option>O próprio paciente</option>
+          <option>Cônjuge / familiar</option>
+          <option>Empregada / cuidador</option>
+          <option>Delivery / restaurante</option>
+          <option>Misto</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label>Recordatório 24h — Café da Manhã</label>
+        <textarea id="f-rec_cafe" placeholder="O que comeu ontem no café da manhã?"></textarea>
+      </div>
+      <div class="form-group full">
+        <label>Recordatório 24h — Almoço</label>
+        <textarea id="f-rec_almoco" placeholder="O que comeu ontem no almoço?"></textarea>
+      </div>
+      <div class="form-group full">
+        <label>Recordatório 24h — Jantar / Ceia</label>
+        <textarea id="f-rec_jantar" placeholder="O que comeu ontem no jantar/ceia?"></textarea>
+      </div>
+      <div class="form-group full">
+        <label>Lanches e Beliscadas</label>
+        <textarea id="f-rec_lanches" placeholder="Petiscos, frutas, biscoitos, café..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Consumo de Água (litros/dia)</label>
+        <input id="f-agua" type="number" step="0.1" placeholder="Ex: 1.5">
+      </div>
+      <div class="form-group">
+        <label>Consumo de Álcool</label>
+        <select id="f-alcool">
+          <option value="">Selecione</option>
+          <option>Não consome</option>
+          <option>Socialmente (1-2x/mês)</option>
+          <option>Fim de semana</option>
+          <option>3-4x por semana</option>
+          <option>Diariamente</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Consumo de Cafeína / Estimulantes</label>
+        <input id="f-cafeina" type="text" placeholder="Café, chá, energético...">
+      </div>
+      <div class="form-group">
+        <label>Fuma / Fumante?</label>
+        <select id="f-tabagismo">
+          <option value="">Selecione</option>
+          <option>Não</option>
+          <option>Ex-fumante</option>
+          <option>Sim, esporadicamente</option>
+          <option>Sim, diariamente</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <h4>❤️ Preferências e Aversões Alimentares</h4>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>Alimentos que GOSTA muito</label>
+        <textarea id="f-gosta" placeholder="Liste os alimentos favoritos..."></textarea>
+      </div>
+      <div class="form-group full">
+        <label>Alimentos que NÃO gosta / evita</label>
+        <textarea id="f-nao_gosta" placeholder="Liste os alimentos que rejeita..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Estilo Alimentar</label>
+        <select id="f-estilo_alim">
+          <option value="">Selecione</option>
+          <option>Onívoro</option>
+          <option>Vegetariano</option>
+          <option>Vegano</option>
+          <option>Flexitariano</option>
+          <option>Low carb</option>
+          <option>Sem restrições</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Restrições Religiosas / Culturais</label>
+        <input id="f-restricoes_cult" type="text" placeholder="Ex: não come carne de porco, halal...">
+      </div>
+      <div class="form-group full">
+        <label>Compulsões / Episódios de Comer Emocional</label>
+        <textarea id="f-compulsao" placeholder="Situações de estresse, ansiedade, TPM que causam comer em excesso..."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <h4>💪 Atividade Física e Rotina</h4>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Pratica atividade física?</label>
+        <select id="f-atividade">
+          <option value="">Selecione</option>
+          <option>Sedentário (não pratica)</option>
+          <option>Levemente ativo (1-2x/semana)</option>
+          <option>Moderadamente ativo (3-4x/semana)</option>
+          <option>Muito ativo (5-6x/semana)</option>
+          <option>Extremamente ativo (2x/dia)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Tipo de Atividade</label>
+        <input id="f-tipo_atividade" type="text" placeholder="Musculação, caminhada, natação...">
+      </div>
+      <div class="form-group">
+        <label>Duração por sessão (min)</label>
+        <input id="f-duracao_treino" type="number" placeholder="Ex: 60">
+      </div>
+      <div class="form-group">
+        <label>Horas de Trabalho por Dia</label>
+        <input id="f-h_trabalho" type="number" placeholder="Ex: 8">
+      </div>
+      <div class="form-group">
+        <label>Horas de Sono <span class="req">*</span></label>
+        <input id="f-sono" type="number" step="0.5" placeholder="Ex: 7.5" min="0" max="24">
+      </div>
+      <div class="form-group">
+        <label>Qualidade do Sono</label>
+        <select id="f-qualidade_sono">
+          <option value="">Selecione</option>
+          <option>Ótima — acorda descansado</option>
+          <option>Boa — satisfatória</option>
+          <option>Regular — às vezes acordo cansado</option>
+          <option>Ruim — acordo cansado sempre</option>
+          <option>Péssima — insônia frequente</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label>Rotina Diária (descreva o dia a dia)</label>
+        <textarea id="f-rotina" placeholder="Horário de acordar, trabalho, treino, alimentação ao longo do dia..."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <h4>🧬 Saúde Digestiva e Sintomas</h4>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Funcionamento intestinal</label>
+        <select id="f-intestino">
+          <option value="">Selecione</option>
+          <option>Regular (1-2x/dia)</option>
+          <option>Regular (1x/dia)</option>
+          <option>Prisão de ventre (menos de 3x/semana)</option>
+          <option>Alternância diarreia/constipação</option>
+          <option>Diarreia frequente</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Sintomas Gastrointestinais</label>
+        <input id="f-sintomas_gi" type="text" placeholder="Gases, inchaço, refluxo, náuseas...">
+      </div>
+      <div class="form-group">
+        <label>Nível de Estresse (1–10)</label>
+        <input id="f-estresse" type="number" min="1" max="10" placeholder="1 = baixo, 10 = altíssimo">
+      </div>
+      <div class="form-group">
+        <label>Humor e Energia no dia a dia</label>
+        <select id="f-humor">
+          <option value="">Selecione</option>
+          <option>Muito bem-disposto e alegre</option>
+          <option>Bem, com energia estável</option>
+          <option>Regular, com altos e baixos</option>
+          <option>Cansado e sem motivação</option>
+          <option>Muito cansado, ansioso ou deprimido</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label>Outros Sintomas Relevantes</label>
+        <textarea id="f-outros_sintomas" placeholder="Queda de cabelo, pele seca, unhas fracas, dores..."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <h4>👩 Saúde Feminina (se aplicável)</h4>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Ciclo Menstrual</label>
+        <select id="f-ciclo">
+          <option value="">Selecione / N/A</option>
+          <option>Regular (28-35 dias)</option>
+          <option>Irregular</option>
+          <option>Ausente (amenorreia)</option>
+          <option>Menopausa</option>
+          <option>Uso de anticoncepcional</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>TPM / Sintomas pré-menstruais</label>
+        <select id="f-tpm">
+          <option value="">Selecione / N/A</option>
+          <option>Não tem</option>
+          <option>Leve</option>
+          <option>Moderada</option>
+          <option>Intensa (retenção, dores, humor)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Gestante / Lactante?</label>
+        <select id="f-gestante">
+          <option value="">Não</option>
+          <option>Gestante</option>
+          <option>Lactante</option>
+          <option>Planejando engravidar</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>SOP / Endometriose diagnosticada?</label>
+        <select id="f-sop">
+          <option value="">Não / Não sabe</option>
+          <option>SOP</option>
+          <option>Endometriose</option>
+          <option>Ambas</option>
+          <option>Em investigação</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  `;
+}
+
+// ─── 2ª CONSULTA ───
+function form2aConsulta(d) {
+  return `
+  <div class="form-section">
+    <h4>📊 Evolução desde a Última Consulta</h4>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Data da Última Consulta</label>
+        <input id="f-dt_ultima" type="date">
+      </div>
+      <div class="form-group">
+        <label>Peso na Última Consulta (kg)</label>
+        <input id="f-peso_anterior" type="number" step="0.1" placeholder="kg">
+      </div>
+      <div class="form-group">
+        <label>Variação de Peso Percebida</label>
+        <select id="f-variacao_peso">
+          <option value="">Selecione</option>
+          <option>Perdi peso (acima do esperado)</option>
+          <option>Perdi peso (conforme esperado)</option>
+          <option>Mantive o peso</option>
+          <option>Ganhei peso</option>
+          <option>Oscilei muito</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Aderiu ao plano alimentar?</label>
+        <select id="f-adesao">
+          <option value="">Selecione</option>
+          <option>Sim, totalmente</option>
+          <option>Sim, na maior parte</option>
+          <option>Parcialmente (dificuldades)</option>
+          <option>Pouco — muitas escapadas</option>
+          <option>Não consegui seguir</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label>Quais foram as principais dificuldades?</label>
+        <textarea id="f-dificuldades" placeholder="Praticidade, sabor, custo, falta de tempo, ansiedade..."></textarea>
+      </div>
+      <div class="form-group full">
+        <label>O que funcionou bem no plano anterior?</label>
+        <textarea id="f-funcionou" placeholder="Receitas, horários, substituições que gostou..."></textarea>
+      </div>
+      <div class="form-group full">
+        <label>Sintomas / Queixas Novas desde a Última Consulta</label>
+        <textarea id="f-sintomas_novos" placeholder="Intestino, energia, sono, humor, outros..."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <h4>💪 Atividade Física e Rotina Atual</h4>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Atividade física atual</label>
+        <select id="f-atividade">
+          <option value="">Selecione</option>
+          <option>Sedentário</option>
+          <option>Levemente ativo (1-2x/semana)</option>
+          <option>Moderadamente ativo (3-4x/semana)</option>
+          <option>Muito ativo (5-6x/semana)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Horas de Sono <span class="req">*</span></label>
+        <input id="f-sono" type="number" step="0.5" placeholder="horas">
+      </div>
+      <div class="form-group">
+        <label>Nível de Estresse Atual (1–10)</label>
+        <input id="f-estresse" type="number" min="1" max="10">
+      </div>
+      <div class="form-group full">
+        <label>Mudanças na rotina desde a última consulta</label>
+        <textarea id="f-mudancas_rotina" placeholder="Emprego novo, viagem, evento, mudança de cidade..."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <h4>🍽️ Alimentação Atual</h4>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>Como está comendo atualmente? (recordatório 24h)</label>
+        <textarea id="f-rec_atual" placeholder="Descreva o que comeu ontem..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Consumo de Água (litros/dia)</label>
+        <input id="f-agua" type="number" step="0.1" placeholder="Ex: 2.0">
+      </div>
+      <div class="form-group full">
+        <label>Suplementos em Uso Atualmente</label>
+        <textarea id="f-suplementos" placeholder="Nomes, doses, horários..."></textarea>
+      </div>
+      <div class="form-group full">
+        <label>Observações Gerais / Outras Informações</label>
+        <textarea id="f-obs_gerais" placeholder="Exames novos, medicamentos alterados, outros..."></textarea>
+      </div>
+    </div>
+  </div>
+  `;
+}
+
+// ─── 3ª CONSULTA ───
+function form3aConsulta(d) {
+  return `
+  <div class="form-section">
+    <h4>🏆 Avaliação de Progresso</h4>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Data da Última Consulta</label>
+        <input id="f-dt_ultima" type="date">
+      </div>
+      <div class="form-group">
+        <label>Meta Original</label>
+        <input id="f-meta_original" type="text" placeholder="Ex: perder 8kg, ganhar massa...">
+      </div>
+      <div class="form-group">
+        <label>% da Meta Alcançada (estimativa)</label>
+        <select id="f-pct_meta">
+          <option value="">Selecione</option>
+          <option>25% — início de jornada</option>
+          <option>50% — progresso significativo</option>
+          <option>75% — quase lá</option>
+          <option>100% — meta atingida!</option>
+          <option>Superou a meta</option>
+          <option>Sem progresso</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Satisfação do Paciente (1–10)</label>
+        <input id="f-satisfacao" type="number" min="1" max="10">
+      </div>
+      <div class="form-group full">
+        <label>Como o paciente descreve sua evolução?</label>
+        <textarea id="f-descricao_evolucao" placeholder="Relato subjetivo do paciente sobre sua jornada..."></textarea>
+      </div>
+      <div class="form-group full">
+        <label>Principais conquistas além da balança</label>
+        <textarea id="f-conquistas" placeholder="Energia, humor, sono, exames, autoestima, roupas..."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <h4>🔄 Fase de Manutenção e Novos Objetivos</h4>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Deseja continuar o acompanhamento?</label>
+        <select id="f-continua">
+          <option value="">Selecione</option>
+          <option>Sim — manutenção do peso</option>
+          <option>Sim — novo objetivo</option>
+          <option>Sim — ajuste fino do plano</option>
+          <option>Alta nutricional</option>
+          <option>Pausa temporária</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Novo Objetivo (se houver)</label>
+        <input id="f-novo_objetivo" type="text" placeholder="Ex: ganho de massa, estética...">
+      </div>
+      <div class="form-group">
+        <label>Horas de Sono <span class="req">*</span></label>
+        <input id="f-sono" type="number" step="0.5" placeholder="horas">
+      </div>
+      <div class="form-group">
+        <label>Atividade Física Atual</label>
+        <select id="f-atividade">
+          <option value="">Selecione</option>
+          <option>Sedentário</option>
+          <option>Levemente ativo (1-2x/semana)</option>
+          <option>Moderadamente ativo (3-4x/semana)</option>
+          <option>Muito ativo (5-6x/semana)</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label>Pontos de atenção para a manutenção</label>
+        <textarea id="f-atencao" placeholder="Situações de risco: viagens, festas, estresse, gatilhos..."></textarea>
+      </div>
+      <div class="form-group full">
+        <label>Suplementos / Medicamentos Atuais</label>
+        <textarea id="f-suplementos" placeholder="Nomes, doses..."></textarea>
+      </div>
+      <div class="form-group full">
+        <label>Observações Gerais</label>
+        <textarea id="f-obs_gerais" placeholder="Exames, outras observações importantes..."></textarea>
+      </div>
+    </div>
+  </div>
+  `;
+}
+
+// ─── IDOSOS ───
+function formIdosos(d) {
+  return `
+  <div class="form-section">
+    <h4>🤍 Protocolo Geriátrico — Saúde Geral</h4>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>Queixa Principal / Motivo da Consulta <span class="req">*</span></label>
+        <textarea id="f-queixa" placeholder="Principal queixa ou objetivo do paciente idoso..."></textarea>
+      </div>
+      <div class="form-group full">
+        <label>Doenças Crônicas (lista completa)</label>
+        <textarea id="f-historico" placeholder="Diabetes tipo 2, HAS, cardiopatia, osteoporose, artrite, demência..."></textarea>
+      </div>
+      <div class="form-group full">
+        <label>Medicamentos em Uso (lista completa)</label>
+        <textarea id="f-medicamentos" placeholder="Nome, dose, frequência — importante para interações alimentares"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Grau de Dependência</label>
+        <select id="f-dependencia">
+          <option value="">Selecione</option>
+          <option>Independente total</option>
+          <option>Semi-independente (auxílio parcial)</option>
+          <option>Dependente (auxílio total)</option>
+          <option>Acamado</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Cuidador responsável pela alimentação?</label>
+        <select id="f-cuidador">
+          <option value="">Selecione</option>
+          <option>O próprio paciente</option>
+          <option>Cônjuge</option>
+          <option>Filho(a)</option>
+          <option>Cuidador profissional</option>
+          <option>Instituição / lar de idosos</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <h4>🍽️ Avaliação Nutricional Geriátrica</h4>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Apetite</label>
+        <select id="f-apetite">
+          <option value="">Selecione</option>
+          <option>Bom — come bem</option>
+          <option>Reduzido — come pouco</option>
+          <option>Muito reduzido — anorexia</option>
+          <option>Aumentado</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Dificuldades na Mastigação / Dentição</label>
+        <select id="f-mastigacao">
+          <option value="">Selecione</option>
+          <option>Sem dificuldade</option>
+          <option>Usa prótese dentária</option>
+          <option>Dificuldade leve</option>
+          <option>Dificuldade grave — dieta pastosa</option>
+          <option>Sonda / via alternativa</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Disfagia (dificuldade de engolir)?</label>
+        <select id="f-disfagia">
+          <option value="">Não</option>
+          <option>Leve (líquidos)</option>
+          <option>Moderada (sólidos e líquidos)</option>
+          <option>Grave</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Constipação Intestinal</label>
+        <select id="f-intestino">
+          <option value="">Selecione</option>
+          <option>Não tem</option>
+          <option>Leve (3x/semana)</option>
+          <option>Moderada (2x/semana)</option>
+          <option>Grave (menos de 1x/semana)</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label>Recordatório 24h (o que comeu ontem)</label>
+        <textarea id="f-rec_cafe" placeholder="Descreva todas as refeições e lanches do dia anterior..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Consumo de Água (litros/dia)</label>
+        <input id="f-agua" type="number" step="0.1" placeholder="Ex: 1.2">
+      </div>
+      <div class="form-group">
+        <label>Suplementos em Uso</label>
+        <input id="f-suplementos" type="text" placeholder="Vitamina D, cálcio, ômega-3...">
+      </div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <h4>🦴 Saúde Óssea, Muscular e Cognitiva</h4>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Osteoporose / Osteopenia diagnosticada?</label>
+        <select id="f-osteoporose">
+          <option value="">Não / Não sabe</option>
+          <option>Osteopenia</option>
+          <option>Osteoporose</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Quedas no último ano?</label>
+        <select id="f-quedas">
+          <option value="">Não</option>
+          <option>1 queda</option>
+          <option>2 ou mais quedas</option>
+          <option>Queda com fratura</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Sarcopenia / Perda muscular suspeita?</label>
+        <select id="f-sarcopenia">
+          <option value="">Não / Não avaliado</option>
+          <option>Suspeita clínica</option>
+          <option>Diagnóstico confirmado</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Cognição / Memória</label>
+        <select id="f-cognicao">
+          <option value="">Preservada</option>
+          <option>Esquecimentos leves</option>
+          <option>Déficit cognitivo moderado</option>
+          <option>Demência diagnosticada</option>
+          <option>Alzheimer</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Horas de Sono <span class="req">*</span></label>
+        <input id="f-sono" type="number" step="0.5" placeholder="horas">
+      </div>
+      <div class="form-group">
+        <label>Atividade Física</label>
+        <select id="f-atividade">
+          <option value="">Selecione</option>
+          <option>Sedentário / acamado</option>
+          <option>Caminhada leve diária</option>
+          <option>Fisioterapia</option>
+          <option>Hidroginástica / yoga</option>
+          <option>Musculação / outros</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label>Outras Observações Relevantes</label>
+        <textarea id="f-outros_sintomas" placeholder="Úlceras de pressão, edema, incontinência, depressão..."></textarea>
+      </div>
+    </div>
+  </div>
+  `;
+}
+
+// ─── ESTÉTICA ───
+function formEstetica(d) {
+  return `
+  <div class="form-section">
+    <h4>✨ Queixa Estética Principal</h4>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>Objetivo Estético Principal <span class="req">*</span></label>
+        <textarea id="f-queixa" placeholder="Melhora da pele, queda de cabelo, celulite, composição corporal, unhas fracas..."></textarea>
+      </div>
+      <div class="form-group full">
+        <label>Histórico de Saúde Relevante</label>
+        <textarea id="f-historico" placeholder="Doenças de pele, tireoide, doenças autoimunes, SOP, anemia..."></textarea>
+      </div>
+      <div class="form-group full">
+        <label>Medicamentos / Suplementos em Uso</label>
+        <textarea id="f-medicamentos" placeholder="Especialmente: anticoncepcionais, minoxidil, colágeno, biotina..."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <h4>💆 Saúde da Pele</h4>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Tipo de Pele</label>
+        <select id="f-tipo_pele">
+          <option value="">Selecione</option>
+          <option>Normal</option>
+          <option>Seca</option>
+          <option>Oleosa</option>
+          <option>Mista</option>
+          <option>Sensível</option>
+          <option>Acneica</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Queixas de Pele</label>
+        <input id="f-queixas_pele" type="text" placeholder="Acne, manchas, ressecamento, flacidez, envelhecimento...">
+      </div>
+      <div class="form-group">
+        <label>Rotina de Skincare</label>
+        <select id="f-skincare">
+          <option value="">Selecione</option>
+          <option>Não tem rotina</option>
+          <option>Básica (hidratante e protetor solar)</option>
+          <option>Intermediária (sérum, esfoliante)</option>
+          <option>Avançada (ativos, peptídeos, retinol)</option>
+          <option>Faz tratamentos estéticos</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Exposição Solar</label>
+        <select id="f-solar">
+          <option value="">Selecione</option>
+          <option>Pouca (trabalho interno)</option>
+          <option>Moderada</option>
+          <option>Intensa (trabalho externo, praia)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Manchas / Melasma?</label>
+        <select id="f-manchas">
+          <option value="">Não</option>
+          <option>Manchas leves</option>
+          <option>Melasma facial</option>
+          <option>Hiperpigmentação pós-inflamatória</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Celulite</label>
+        <select id="f-celulite">
+          <option value="">Selecione</option>
+          <option>Não tem</option>
+          <option>Grau 1 (só ao apertar)</option>
+          <option>Grau 2 (visível em pé)</option>
+          <option>Grau 3 (visível deitada)</option>
+          <option>Grau 4 (ondulações profundas)</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <h4>💇 Saúde do Cabelo e Unhas</h4>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Queixa Capilar</label>
+        <select id="f-queixa_cabelo">
+          <option value="">Sem queixa</option>
+          <option>Queda difusa</option>
+          <option>Alopecia androgenética</option>
+          <option>Cabelo seco / quebradiço</option>
+          <option>Fios sem brilho / sem crescimento</option>
+          <option>Caspa / couro cabeludo inflamado</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Tempo de queda / problema capilar</label>
+        <input id="f-tempo_queda" type="text" placeholder="Ex: 6 meses, 2 anos...">
+      </div>
+      <div class="form-group">
+        <label>Queixa de Unhas</label>
+        <select id="f-unhas">
+          <option value="">Sem queixa</option>
+          <option>Unhas fracas / quebradiças</option>
+          <option>Crescimento lento</option>
+          <option>Manchas brancas</option>
+          <option>Onicofagia (roer unhas)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Já fez exame hormonal / de tireoide?</label>
+        <select id="f-exame_hormonal">
+          <option value="">Não / Não sabe</option>
+          <option>Sim — normal</option>
+          <option>Sim — alterado</option>
+          <option>Em investigação</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <h4>🍽️ Alimentação e Rotina</h4>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>Recordatório 24h</label>
+        <textarea id="f-rec_cafe" placeholder="Descreva todas as refeições do dia anterior..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Consumo de Proteínas (auto-avaliação)</label>
+        <select id="f-proteinas">
+          <option value="">Selecione</option>
+          <option>Baixo — quase não come proteína</option>
+          <option>Moderado</option>
+          <option>Alto — come bem</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Consumo de Água (litros/dia)</label>
+        <input id="f-agua" type="number" step="0.1" placeholder="Ex: 2.0">
+      </div>
+      <div class="form-group">
+        <label>Horas de Sono <span class="req">*</span></label>
+        <input id="f-sono" type="number" step="0.5" placeholder="horas">
+      </div>
+      <div class="form-group">
+        <label>Atividade Física</label>
+        <select id="f-atividade">
+          <option value="">Selecione</option>
+          <option>Sedentário</option>
+          <option>Levemente ativo</option>
+          <option>Moderadamente ativo</option>
+          <option>Muito ativo</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Nível de Estresse (1–10)</label>
+        <input id="f-estresse" type="number" min="1" max="10">
+      </div>
+      <div class="form-group full">
+        <label>Histórico de dietas restritivas</label>
+        <textarea id="f-dietas_restritivas" placeholder="Low carb extremo, jejum prolongado, restrição calórica severa..."></textarea>
+      </div>
+      <div class="form-group full">
+        <label>Alergias / Intolerâncias</label>
+        <input id="f-alergias" type="text" placeholder="Lactose, glúten, outros...">
+      </div>
+      <div class="form-group full">
+        <label>Queixas gerais adicionais</label>
+        <textarea id="f-outros_sintomas" placeholder="Outros sintomas relevantes para nutrição estética..."></textarea>
+      </div>
+    </div>
+  </div>
+  `;
+}
+
+// ─── SEÇÃO DE CÁLCULOS ───
+function formCalculoSection(d, tipo) {
+  return `
+  <div class="form-section">
+    <h4>📐 Dados Antropométricos e Cálculo Dietético</h4>
+    <div class="calc-box">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Peso Atual (kg) <span class="req">*</span></label>
+          <input id="f-peso" type="number" step="0.1" placeholder="Ex: 68.5" oninput="autoCalc()">
+        </div>
+        <div class="form-group">
+          <label>Altura (cm) <span class="req">*</span></label>
+          <input id="f-altura" type="number" step="0.1" placeholder="Ex: 165" oninput="autoCalc()">
+        </div>
+        <div class="form-group">
+          <label>Circunferência Cintura (cm)</label>
+          <input id="f-cintura" type="number" step="0.1" placeholder="Ex: 80">
+        </div>
+        <div class="form-group">
+          <label>Circunferência Quadril (cm)</label>
+          <input id="f-quadril" type="number" step="0.1" placeholder="Ex: 98">
+        </div>
+        <div class="form-group">
+          <label>Circunferência do Braço (CB) cm</label>
+          <input id="f-cb" type="number" step="0.1" placeholder="Ex: 28.5">
+        </div>
+        <div class="form-group">
+          <label>Prega Cutânea Tricipital (PCT) mm</label>
+          <input id="f-pct" type="number" step="0.1" placeholder="Ex: 20">
+        </div>
+        <div class="form-group">
+          <label>Soma 4 Pregas (mm) — para % gordura</label>
+          <input id="f-pregas" type="number" step="0.1" placeholder="Bíceps + Tricipital + Escapular + Ilíaca" oninput="autoCalc()">
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <div class="form-grid cols-2" style="margin-top:16px;">
+        <div class="form-group">
+          <label>Método de Cálculo da TMB</label>
+          <select id="f-metodo_calc" onchange="autoCalc()">
+            <option value="harris">Harris-Benedict (1919) — Clássico</option>
+            <option value="fao">FAO/OMS (2001) — Recomendado</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Horas de Atividade Física por Dia <span class="req">*</span></label>
+          <input id="f-h_atividade" type="number" step="0.5" placeholder="Ex: 1.5" oninput="autoCalc()">
+        </div>
+        <div class="form-group">
+          <label>Nível de Intensidade da Atividade <span class="req">*</span></label>
+          <select id="f-intensidade" onchange="autoCalc()">
+            <option value="">Selecione</option>
+            <option value="leve">1 — Leve (caminhada, yoga)</option>
+            <option value="moderada">2 — Moderada (musculação, ciclismo)</option>
+            <option value="intensa">3 — Intensa (corrida, HIIT, esportes)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Horas de Sono <span class="req">*</span></label>
+          <input id="f-sono" type="number" step="0.5" placeholder="Ex: 7.5" oninput="autoCalc()" ${document.getElementById ? '' : ''}>
+        </div>
+        <div class="form-group">
+          <label>Objetivo / Meta de Mudança de Peso</label>
+          <select id="f-objetivo" onchange="autoCalc()">
+            <option value="manutencao">Manutenção do peso atual</option>
+            <option value="perda_1">Perda de 1,0 kg/mês (−256 kcal/dia)</option>
+            <option value="perda_15">Perda de 1,5 kg/mês (−384 kcal/dia)</option>
+            <option value="perda_2">Perda de 2,0 kg/mês (−513 kcal/dia)</option>
+            <option value="perda_25">Perda de 2,5 kg/mês (−641 kcal/dia)</option>
+            <option value="perda_3">Perda de 3,0 kg/mês (−770 kcal/dia)</option>
+            <option value="ganho_05">Ganho de 0,5 kg/mês (+250 kcal/dia)</option>
+            <option value="ganho_1">Ganho de 1,0 kg/mês (+500 kcal/dia)</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="calc-results" class="calc-results">
+        <h5>📊 Resultados do Cálculo Dietético</h5>
+        <div class="result-row"><span class="label">IMC</span><span><span id="r-imc" class="value"></span> <span id="r-imc-class" class="badge"></span></span></div>
+        <div class="result-row"><span class="label">Taxa Metabólica Basal (TMB)</span><span class="value"><span id="r-tmb"></span> kcal/dia</span></div>
+        <div class="result-row"><span class="label">GET — Gasto Energético Total (VET)</span><span class="value"><span id="r-get"></span> kcal/dia</span></div>
+        <div class="result-row"><span class="label">VET com Efeito Térmico (+10%)</span><span class="value"><span id="r-vet-termico"></span> kcal/dia</span></div>
+        <div class="result-row"><span class="label">Meta Calórica Ajustada</span><span><span id="r-meta" class="value"></span> kcal/dia <span id="r-meta-tipo" class="badge"></span></span></div>
+        <div class="result-row"><span class="label">% Gordura Corporal</span><span><span id="r-gordura" class="value"></span> <span id="r-gordura-class" class="badge"></span></span></div>
+        <div class="result-row"><span class="label">Relação Cintura/Quadril (RCQ)</span><span><span id="r-rcq" class="value"></span> <span id="r-rcq-class" class="badge"></span></span></div>
+      </div>
+
+      <button class="btn btn-primary" style="margin-top:16px;" onclick="autoCalc(true)">🔢 Calcular</button>
+    </div>
+  </div>`;
+}
+
+function formObjetivosSection(d) {
+  return `
+  <div class="form-section">
+    <h4>🎯 Objetivos e Observações da Consulta</h4>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>Objetivos Estabelecidos na Consulta</label>
+        <textarea id="f-objetivos_consulta" placeholder="Metas definidas em conjunto com o paciente..."></textarea>
+      </div>
+      <div class="form-group full">
+        <label>Condutas e Orientações</label>
+        <textarea id="f-condutas" placeholder="Orientações dietéticas, comportamentais, suplementação indicada..."></textarea>
+      </div>
+      <div class="form-group full">
+        <label>Data do Próximo Retorno</label>
+        <input id="f-proximo_retorno" type="date">
+      </div>
+      <div class="form-group full">
+        <label>Observações Gerais da Nutricionista</label>
+        <textarea id="f-obs_nutricionista" placeholder="Anotações clínicas, impressões, pontos de atenção..."></textarea>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ══════════════════════════════════════════════
+// FILL FORM WITH SAVED DATA
+// ══════════════════════════════════════════════
+function fillForm(data) {
+  Object.keys(data).forEach(k => {
+    if (k.startsWith('f_')) {
+      const el = document.getElementById(k.replace('f_','f-'));
+      if (el) el.value = data[k] || '';
+    }
+  });
+  setTimeout(() => autoCalc(false), 200);
+}
+
+// ══════════════════════════════════════════════
+// SUBMIT FORM
+// ══════════════════════════════════════════════
+async function submitForm(tipo) {
+  const nome = document.getElementById('f-nome')?.value?.trim();
+  if (!nome) { toast('⚠️ Nome do paciente é obrigatório!'); return; }
+
+  const data = { tipo, nome };
+  const ids = ['nome','dtnasc','idade','sexo','tel','email','profissao','cidade',
+    'queixa','historico','hist_familiar','cirurgias','medicamentos','suplementos',
+    'alergias','exames','h_cafe','n_refeicoes','come_fora','quem_cozinha',
+    'rec_cafe','rec_almoco','rec_jantar','rec_lanches','agua','alcool','cafeina',
+    'tabagismo','gosta','nao_gosta','estilo_alim','restricoes_cult','compulsao',
+    'atividade','tipo_atividade','duracao_treino','h_trabalho','sono','qualidade_sono',
+    'rotina','intestino','sintomas_gi','estresse','humor','outros_sintomas',
+    'ciclo','tpm','gestante','sop','peso','altura','cintura','quadril','cb','pct',
+    'pregas','metodo_calc','h_atividade','intensidade','objetivo',
+    'objetivos_consulta','condutas','proximo_retorno','obs_nutricionista',
+    'dt_ultima','peso_anterior','variacao_peso','adesao','dificuldades','funcionou',
+    'sintomas_novos','mudancas_rotina','rec_atual','obs_gerais',
+    'meta_original','pct_meta','satisfacao','descricao_evolucao','conquistas',
+    'continua','novo_objetivo','atencao','dependencia','cuidador','apetite',
+    'mastigacao','disfagia','osteoporose','quedas','sarcopenia','cognicao',
+    'tipo_pele','queixas_pele','skincare','solar','manchas','celulite',
+    'queixa_cabelo','tempo_queda','unhas','exame_hormonal','proteinas',
+    'dietas_restritivas','tipo_pele2','h_atividade2','proteinas'];
+
+  // Capture results too
+  ['r-imc','r-imc-class','r-tmb','r-get','r-vet-termico','r-meta','r-meta-tipo','r-gordura','r-gordura-class','r-rcq','r-rcq-class'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) data[id.replace(/-/g,'_')] = el.textContent;
+  });
+
+  document.querySelectorAll('[id^="f-"]').forEach(el => {
+    const key = 'f_' + el.id.slice(2);
+    data[key] = el.value || '';
+  });
+
+  const id = await savePatient(data);
+  if (id) {
+    currentPatientId = id;
+    loadAllPatients();
+  }
+}
+
+// ══════════════════════════════════════════════
+// CALCULATIONS
+// ══════════════════════════════════════════════
+const GORDURA_TABLE = {
+  '17-29': { H:[4.8,8.1,10.5,12.9,14.7,16.4,17.7,19.0,20.1,21.2,22.2,23.1,24.0,24.8,25.5,26.2,26.9,27.6,28.2,28.8,29.4,30.0,30.5,31.0,31.5,32.0,32.5,32.9,33.3,33.7,34.1,34.5,34.9,35.3,35.6,35.9], M:[10.5,14.1,16.8,19.5,21.5,23.4,25.0,26.5,27.8,29.1,30.2,31.2,32.2,33.1,34.0,35.6,36.4,37.1,37.8,38.4,39.0,39.6,40.2,40.8,41.3,41.8,42.3,42.8,43.3,43.7,44.1,44.4,44.8,45.2,45.6,45.9] },
+  '30-39': { H:[12.2,14.2,15.0,16.2,17.7,19.2,20.4,21.5,22.5,23.5,24.3,25.1,25.9,26.6,27.2,27.8,28.4,29.0,29.6,30.1,30.6,31.1,31.5,31.9,32.3,32.7,33.1,33.5,33.9,34.3,34.6,34.8], M:[17.0,19.4,22.2,21.8,23.7,25.5,26.9,28.2,29.4,30.6,31.6,32.5,33.4,34.3,35.1,35.8,36.5,37.2,37.9,38.6,39.1,39.6,40.1,40.6,41.1,41.6,42.1,42.6,43.1,43.6,44.0,44.4] }
+};
+
+function lookupBodyFatPercent(pregas, sexo, idade) {
+  const col = parseInt(idade) < 30 ? '17-29' : (parseInt(idade) < 40 ? '30-39' : (parseInt(idade) < 50 ? '40-49' : '50+'));
+  // Simple interpolation from table
+  const vals_H = [4.8,8.1,10.5,12.9,14.7,16.4,17.7,19.0,20.1,21.2,22.2,23.1,24.0,24.8,25.5,26.2,26.9,27.6,28.2,28.8,29.4,30.0,30.5,31.0,31.5,32.0,32.5,32.9,33.3,33.7,34.1,34.5,34.9,35.3,35.6,35.9];
+  const vals_M_young = [10.5,14.1,16.8,19.5,21.5,23.4,25.0,26.5,27.8,29.1,30.2,31.2,32.2,33.1,34.0,35.6,36.4,37.1,37.8,38.4,39.0,39.6,40.2,40.8,41.3,41.8,42.3,42.8,43.3,43.7,44.1,44.4,44.8,45.2,45.6,45.9];
+  // pregas start from 15, step 5
+  const idx = Math.round((pregas - 15) / 5);
+  const safeIdx = Math.max(0, Math.min(idx, vals_H.length - 1));
+  if (sexo === 'M') return vals_H[safeIdx];
+  return vals_M_young[safeIdx];
+}
+
+function autoCalc(show=false) {
+  const peso = parseFloat(document.getElementById('f-peso')?.value);
+  const altura = parseFloat(document.getElementById('f-altura')?.value);
+  const sono = parseFloat(document.getElementById('f-sono')?.value || 0);
+  const hAtiv = parseFloat(document.getElementById('f-h_atividade')?.value || 0);
+  const intensidade = document.getElementById('f-intensidade')?.value;
+  const metodo = document.getElementById('f-metodo_calc')?.value || 'harris';
+  const objetivo = document.getElementById('f-objetivo')?.value || 'manutencao';
+  const sexo = document.getElementById('f-sexo')?.value;
+  const idade = parseFloat(document.getElementById('f-idade')?.value || 30);
+  const cintura = parseFloat(document.getElementById('f-cintura')?.value || 0);
+  const quadril = parseFloat(document.getElementById('f-quadril')?.value || 0);
+  const pregas = parseFloat(document.getElementById('f-pregas')?.value || 0);
+
+  if (!peso || !altura) return;
+
+  // IMC
+  const imc = peso / ((altura/100) ** 2);
+  const imcClass = classifyIMC(imc, idade);
+
+  // TMB
+  let tmb = 0;
+  if (metodo === 'harris') {
+    if (sexo === 'F') tmb = 655.1 + (9.6*peso) + (1.8*altura) - (4.7*idade);
+    else tmb = 66.5 + (13.8*peso) + (5*altura) - (6.8*idade);
+  } else { // FAO/OMS
+    if (sexo === 'F') {
+      if (idade <= 30) tmb = 14.818*peso + 486.6;
+      else if (idade <= 60) tmb = 8.126*peso + 845.6;
+      else tmb = 9.082*peso + 658.5;
+    } else {
+      if (idade <= 30) tmb = 15.057*peso + 692.2;
+      else if (idade <= 60) tmb = 11.472*peso + 873.1;
+      else tmb = 11.711*peso + 587.7;
+    }
+  }
+
+  // GET pelo método VENTA (Ve1 + Ve2)
+  const hRotina = 24 - sono;
+  const fatorAtiv = getFatorAtividade(sexo, intensidade);
+  const tmb24 = tmb / 24;
+  const ve1 = tmb24 * sono;
+  const ve2 = tmb24 * hRotina * fatorAtiv;
+  const vet = ve1 + ve2;
+  const vetTermico = vet * 1.1;
+
+  // Meta
+  const { delta, label } = getObjetivoDelta(objetivo);
+  const meta = vetTermico + delta;
+
+  // % Gordura
+  let gordura = null, gorduraClass = '';
+  if (pregas >= 15) {
+    gordura = lookupBodyFatPercent(pregas, sexo, idade);
+    gorduraClass = classifyGordura(gordura, sexo);
+  }
+
+  // RCQ
+  let rcq = null, rcqClass = '';
+  if (cintura && quadril) {
+    rcq = cintura / quadril;
+    rcqClass = classifyRCQ(rcq, sexo);
+  }
+
+  // Populate results
+  set('r-imc', imc.toFixed(1));
+  set('r-imc-class', imcClass);
+  set('r-tmb', Math.round(tmb));
+  set('r-get', Math.round(vet));
+  set('r-vet-termico', Math.round(vetTermico));
+  set('r-meta', Math.round(meta));
+  set('r-meta-tipo', label);
+  set('r-gordura', gordura ? gordura.toFixed(1) + '%' : '—');
+  set('r-gordura-class', gordura ? gorduraClass : '');
+  set('r-rcq', rcq ? rcq.toFixed(2) : '—');
+  set('r-rcq-class', rcq ? rcqClass : '');
+
+  const res = document.getElementById('calc-results');
+  if (res) res.classList.add('show');
+  if (show) toast('✅ Cálculo realizado!');
+
+  // Store for diet
+  window._lastCalc = { imc, imcClass, tmb, vet, vetTermico, meta, gordura, gorduraClass, rcq, rcqClass };
+}
+
+function set(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
+function getFatorAtividade(sexo, intensidade) {
+  const map = {
+    F: { leve:1.56, moderada:1.64, intensa:1.82 },
+    M: { leve:1.55, moderada:1.78, intensa:2.10 }
+  };
+  return (map[sexo||'F']?.[intensidade]) || 1.56;
+}
+
+function getObjetivoDelta(obj) {
+  const map = {
+    manutencao: { delta:0, label:'Manutenção' },
+    perda_1: { delta:-256, label:'−1kg/mês' },
+    perda_15: { delta:-384, label:'−1,5kg/mês' },
+    perda_2: { delta:-513, label:'−2kg/mês' },
+    perda_25: { delta:-641, label:'−2,5kg/mês' },
+    perda_3: { delta:-770, label:'−3kg/mês' },
+    ganho_05: { delta:250, label:'+0,5kg/mês' },
+    ganho_1: { delta:500, label:'+1kg/mês' }
+  };
+  return map[obj] || { delta:0, label:'Manutenção' };
+}
+
+function classifyIMC(imc, idade) {
+  if (idade >= 60) {
+    if (imc < 22) return 'Magreza';
+    if (imc <= 27) return 'Eutrofia';
+    return 'Obesidade';
+  }
+  if (imc < 16) return 'Magreza G3';
+  if (imc < 17) return 'Magreza G2';
+  if (imc < 18.5) return 'Magreza G1';
+  if (imc < 25) return 'Eutrofia';
+  if (imc < 30) return 'Sobrepeso';
+  if (imc < 35) return 'Obesidade G1';
+  if (imc < 40) return 'Obesidade G2';
+  return 'Obesidade G3';
+}
+
+function classifyGordura(g, sexo) {
+  if (sexo === 'M') {
+    if (g < 8) return 'Magro';
+    if (g <= 15) return 'Ótimo';
+    if (g <= 20) return 'Leve adiposidade';
+    if (g <= 24) return 'Adiposidade';
+    return 'Obesidade';
+  } else {
+    if (g < 13) return 'Magra';
+    if (g <= 23) return 'Ótimo';
+    if (g <= 27) return 'Leve adiposidade';
+    if (g <= 32) return 'Adiposidade';
+    return 'Obesidade';
+  }
+}
+
+function classifyRCQ(rcq, sexo) {
+  const limit = sexo === 'M' ? 1.0 : 0.85;
+  return rcq > limit ? 'Risco cardiovascular' : 'Sem risco';
+}
+
+// ══════════════════════════════════════════════
+// PDF GENERATION
+// ══════════════════════════════════════════════
+async function triggerPDF(tipo) {
+  await submitForm(tipo);
+  setTimeout(() => generateConsultPDF(currentPatientId), 500);
+}
+
+async function generateConsultPDF(id) {
+  if (!db) { toast('⚠️ Firebase não conectado'); return; }
+  const ref = fbFns.doc(db, 'pacientes', id);
+  const snap = await fbFns.getDoc(ref);
+  if (!snap.exists()) { toast('❌ Paciente não encontrado'); return; }
+  const data = snap.data();
+  buildConsultPDF(data);
+}
+
+function buildConsultPDF(data) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+  const W = 210, margin = 18;
+
+  // Header
+  doc.setFillColor(74,53,37);
+  doc.rect(0,0,W,38,'F');
+  doc.setTextColor(232,221,208);
+  doc.setFontSize(22);
+  doc.setFont('helvetica','bold');
+  doc.text('NutriConsulta', margin, 18);
+  doc.setFontSize(11);
+  doc.setFont('helvetica','normal');
+  doc.text('Relatório de Consulta Nutricional', margin, 26);
+  doc.setFontSize(9);
+  doc.text(`Data: ${new Date().toLocaleDateString('pt-BR')} | Tipo: ${consultLabel(data.tipo)}`, margin, 33);
+
+  let y = 48;
+
+  const addSection = (title) => {
+    doc.setFillColor(232,221,208);
+    doc.rect(margin, y-4, W-margin*2, 8, 'F');
+    doc.setTextColor(74,53,37);
+    doc.setFontSize(11);
+    doc.setFont('helvetica','bold');
+    doc.text(title, margin+2, y+1);
+    y += 10;
+    doc.setFont('helvetica','normal');
+    doc.setTextColor(46,31,15);
+    doc.setFontSize(10);
+  };
+
+  const addRow = (label, val) => {
+    if (!val || val === '' || val === 'undefined') return;
+    const text = `${label}: ${val}`;
+    const lines = doc.splitTextToSize(text, W-margin*2);
+    lines.forEach(l => {
+      if (y > 270) { doc.addPage(); y = 20; }
+      doc.text(l, margin, y);
+      y += 6;
+    });
+  };
+
+  const g = (k) => data['f_' + k.replace(/-/g,'_')] || '';
+
+  addSection('IDENTIFICAÇÃO');
+  addRow('Nome', g('nome')); addRow('Idade', g('idade') + (g('idade') ? ' anos' : '')); addRow('Sexo', g('sexo') === 'F' ? 'Feminino' : g('sexo') === 'M' ? 'Masculino' : '');
+  addRow('Data de Nasc.', g('dtnasc')); addRow('Profissão', g('profissao')); addRow('Cidade', g('cidade'));
+  addRow('Telefone', g('tel')); addRow('E-mail', g('email'));
+  y += 4;
+
+  addSection('QUEIXA E HISTÓRICO');
+  addRow('Queixa Principal', g('queixa')); addRow('Histórico de Saúde', g('historico'));
+  addRow('Histórico Familiar', g('hist-familiar')); addRow('Medicamentos', g('medicamentos'));
+  addRow('Suplementos', g('suplementos')); addRow('Alergias', g('alergias'));
+  y += 4;
+
+  addSection('HÁBITOS ALIMENTARES');
+  addRow('Refeições/dia', g('n-refeicoes')); addRow('Consumo de Água', g('agua') ? g('agua') + 'L/dia' : '');
+  addRow('Álcool', g('alcool')); addRow('Estilo Alimentar', g('estilo-alim'));
+  addRow('Alimentos preferidos', g('gosta')); addRow('Aversões', g('nao-gosta'));
+  addRow('Recordatório — Café', g('rec-cafe')); addRow('Recordatório — Almoço', g('rec-almoco'));
+  addRow('Recordatório — Jantar', g('rec-jantar'));
+  y += 4;
+
+  addSection('ATIVIDADE FÍSICA E ROTINA');
+  addRow('Atividade Física', g('atividade')); addRow('Tipo', g('tipo-atividade'));
+  addRow('Horas de Sono', g('sono') ? g('sono') + 'h' : ''); addRow('Estresse', g('estresse') ? g('estresse') + '/10' : '');
+  addRow('Rotina', g('rotina'));
+  y += 4;
+
+  addSection('DADOS ANTROPOMÉTRICOS E CÁLCULOS');
+  addRow('Peso', g('peso') ? g('peso') + ' kg' : ''); addRow('Altura', g('altura') ? g('altura') + ' cm' : '');
+  addRow('Cintura', g('cintura') ? g('cintura') + ' cm' : ''); addRow('Quadril', g('quadril') ? g('quadril') + ' cm' : '');
+  addRow('CB', g('cb') ? g('cb') + ' cm' : ''); addRow('PCT', g('pct') ? g('pct') + ' mm' : '');
+  y += 3;
+
+  // Calc results box
+  const calcData = [
+    ['IMC', data.r_imc ? data.r_imc + ' kg/m² — ' + data.r_imc_class : '—'],
+    ['TMB (Taxa Metabólica Basal)', data.r_tmb ? data.r_tmb + ' kcal/dia' : '—'],
+    ['GET (Gasto Energético Total)', data.r_get ? data.r_get + ' kcal/dia' : '—'],
+    ['VET com Efeito Térmico', data.r_vet_termico ? data.r_vet_termico + ' kcal/dia' : '—'],
+    ['Meta Calórica Ajustada', data.r_meta ? data.r_meta + ' kcal/dia (' + (data.r_meta_tipo||'') + ')' : '—'],
+    ['% Gordura Corporal', data.r_gordura ? data.r_gordura + ' — ' + (data.r_gordura_class||'') : '—'],
+    ['RCQ', data.r_rcq ? data.r_rcq + ' — ' + (data.r_rcq_class||'') : '—'],
+  ];
+  if (y > 230) { doc.addPage(); y = 20; }
+  doc.autoTable({
+    startY: y,
+    head: [['Indicador', 'Resultado']],
+    body: calcData,
+    theme: 'grid',
+    headStyles: { fillColor:[74,53,37], textColor:[232,221,208], fontSize:10 },
+    bodyStyles: { fontSize:10, textColor:[46,31,15] },
+    alternateRowStyles: { fillColor:[245,240,232] },
+    margin: { left: margin, right: margin }
+  });
+  y = doc.lastAutoTable.finalY + 8;
+
+  addSection('OBJETIVOS E CONDUTAS');
+  addRow('Objetivos', g('objetivos-consulta')); addRow('Condutas', g('condutas'));
+  addRow('Próximo Retorno', g('proximo-retorno'));
+  addRow('Observações', g('obs-nutricionista'));
+
+  // Footer
+  doc.setFontSize(8);
+  doc.setTextColor(160,128,96);
+  const pages = doc.internal.getNumberOfPages();
+  for (let i=1; i<=pages; i++) {
+    doc.setPage(i);
+    doc.text(`NutriConsulta — Documento clínico confidencial — Página ${i}/${pages}`, margin, 290);
+  }
+
+  const nome = data.f_nome || 'paciente';
+  doc.save(`consulta_${nome.replace(/\s+/g,'_')}_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.pdf`);
+  toast('📄 PDF gerado com sucesso!');
+}
+
+// ══════════════════════════════════════════════
+// DIET PLANNER
+// ══════════════════════════════════════════════
+const FOOD_DB = [
+  { name:'Arroz branco cozido', cho:28, ptn:2.5, lip:0.2, fiber:0.2, kcalPer100:130, caseira:'2 col. sopa = 90g' },
+  { name:'Feijão cozido', cho:14, ptn:5, lip:0.5, fiber:5, kcalPer100:77, caseira:'1 concha = 100g' },
+  { name:'Frango grelhado (peito)', cho:0, ptn:32, lip:3.6, fiber:0, kcalPer100:159, caseira:'1 filé médio = 120g' },
+  { name:'Ovo inteiro cozido', cho:0.6, ptn:13, lip:11, fiber:0, kcalPer100:155, caseira:'1 unidade = 50g' },
+  { name:'Batata-doce cozida', cho:20, ptn:1.6, lip:0.1, fiber:2.5, kcalPer100:86, caseira:'1/2 unidade média = 120g' },
+  { name:'Aveia em flocos', cho:68, ptn:17, lip:7, fiber:10, kcalPer100:394, caseira:'3 col. sopa = 30g' },
+  { name:'Banana nanica', cho:23, ptn:1.4, lip:0.2, fiber:2, kcalPer100:98, caseira:'1 unidade média = 100g' },
+  { name:'Maçã', cho:15, ptn:0.3, lip:0.3, fiber:2, kcalPer100:56, caseira:'1 unidade média = 130g' },
+  { name:'Leite desnatado', cho:5, ptn:3.5, lip:0.1, fiber:0, kcalPer100:35, caseira:'1 copo = 200ml' },
+  { name:'Iogurte natural integral', cho:4.5, ptn:4, lip:3.5, fiber:0, kcalPer100:66, caseira:'1 pote = 170g' },
+  { name:'Azeite de oliva', cho:0, ptn:0, lip:100, fiber:0, kcalPer100:884, caseira:'1 col. sopa = 13ml' },
+  { name:'Pão integral', cho:40, ptn:9, lip:4, fiber:6, kcalPer100:247, caseira:'1 fatia = 25g' },
+  { name:'Salmão grelhado', cho:0, ptn:25, lip:13, fiber:0, kcalPer100:208, caseira:'1 filé médio = 100g' },
+  { name:'Brócolis cozido', cho:4, ptn:3, lip:0.4, fiber:2.6, kcalPer100:35, caseira:'1 colher servir = 80g' },
+  { name:'Queijo minas frescal', cho:2, ptn:17, lip:5, fiber:0, kcalPer100:264, caseira:'1 fatia = 30g' },
+  { name:'Castanha-do-pará', cho:4, ptn:14, lip:66, fiber:8, kcalPer100:656, caseira:'1 unidade = 5g' },
+  { name:'Whey protein (scoop)', cho:3, ptn:25, lip:1.5, fiber:0.5, kcalPer100:400, caseira:'1 scoop = 30g' },
+  { name:'Abacate', cho:6, ptn:2, lip:15, fiber:6.7, kcalPer100:160, caseira:'1/2 unidade = 100g' },
+];
+
+const MEAL_NAMES = ['Café da Manhã','Lanche da Manhã','Almoço','Lanche da Tarde','Jantar','Ceia'];
+
+function addMeal() {
+  const idx = mealsData.length;
+  mealsData.push({ name: MEAL_NAMES[idx] || `Refeição ${idx+1}`, foods:[] });
+  renderMeals();
+}
+
+function renderMeals() {
+  const c = document.getElementById('meals-container');
+  if (!c) return;
+  c.innerHTML = mealsData.map((meal, mi) => `
+    <div class="meal-card">
+      <div class="meal-header" onclick="toggleMeal(${mi})">
+        <h4>🍽 ${meal.name}</h4>
+        <div style="display:flex;gap:12px;align-items:center;">
+          <span class="kcal-badge" id="meal-kcal-${mi}">0 kcal</span>
+          <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();removeMeal(${mi})">×</button>
+        </div>
+      </div>
+      <div class="meal-body" id="meal-body-${mi}">
+        <div class="form-grid cols-3" style="margin-bottom:8px;font-size:11px;color:var(--text-mid);font-weight:400;letter-spacing:0.05em;text-transform:uppercase;">
+          <span>Alimento</span><span>Qtd (g)</span><span>Kcal</span>
+        </div>
+        ${meal.foods.map((f, fi) => renderFoodRow(mi, fi, f)).join('')}
+        <select onchange="addFoodFromDB(${mi}, this)" style="width:100%;margin-top:8px;padding:8px 12px;">
+          <option value="">+ Adicionar alimento da lista...</option>
+          ${FOOD_DB.map((f,i) => `<option value="${i}">${f.name} (${f.caseira})</option>`).join('')}
+        </select>
+        <div style="margin-top:8px;">
+          <input type="text" placeholder="Ou digitê um alimento manualmente e pressione Enter" 
+            onkeydown="if(event.key==='Enter'){addCustomFood(${mi},this.value);this.value=''}"
+            style="width:100%;padding:7px 12px;font-size:13px;">
+        </div>
+        <div class="food-total" id="meal-total-${mi}"></div>
+      </div>
+    </div>
+  `).join('');
+  updateDietTotals();
+}
+
+function renderFoodRow(mi, fi, f) {
+  return `
+  <div class="food-row" id="fr-${mi}-${fi}">
+    <input value="${f.name}" onchange="mealsData[${mi}].foods[${fi}].name=this.value;updateDietTotals()" style="background:var(--cream);">
+    <input type="number" value="${f.grams||100}" step="1" min="0"
+      onchange="mealsData[${mi}].foods[${fi}].grams=+this.value;recalcFood(${mi},${fi});updateDietTotals()">
+    <input value="${calcFoodKcal(f)}" readonly style="background:var(--beige);color:var(--brown);">
+    <span style="font-size:11px;color:var(--text-mid);">${f.caseira||''}</span>
+    <button class="btn btn-danger btn-sm" style="padding:4px 8px;" onclick="removeFood(${mi},${fi})">×</button>
+  </div>`;
+}
+
+function addFoodFromDB(mi, sel) {
+  const idx = parseInt(sel.value);
+  if (isNaN(idx)) return;
+  const f = { ...FOOD_DB[idx], grams:100 };
+  mealsData[mi].foods.push(f);
+  sel.value = '';
+  renderMeals();
+}
+
+function addCustomFood(mi, name) {
+  if (!name.trim()) return;
+  mealsData[mi].foods.push({ name:name.trim(), cho:0, ptn:0, lip:0, fiber:0, kcalPer100:0, grams:100, caseira:'' });
+  renderMeals();
+}
+
+function removeFood(mi, fi) { mealsData[mi].foods.splice(fi,1); renderMeals(); }
+function removeMeal(mi) { mealsData.splice(mi,1); renderMeals(); }
+function toggleMeal(mi) {
+  const b = document.getElementById('meal-body-'+mi);
+  if (b) b.style.display = b.style.display === 'none' ? '' : 'none';
+}
+
+function calcFoodKcal(f) {
+  const g = f.grams || 100;
+  return Math.round(((f.cho||0)*4 + (f.ptn||0)*4 + (f.lip||0)*9) * g / 100);
+}
+
+function recalcFood(mi, fi) {}
+
+function updateDietTotals() {
+  let totalKcal=0, totalCHO=0, totalPTN=0, totalLIP=0, totalFiber=0;
+  mealsData.forEach((meal, mi) => {
+    let mKcal=0;
+    meal.foods.forEach(f => {
+      const g = f.grams || 100;
+      const kcal = Math.round(((f.cho||0)*4+(f.ptn||0)*4+(f.lip||0)*9)*g/100);
+      mKcal += kcal; totalKcal += kcal;
+      totalCHO += (f.cho||0)*g/100;
+      totalPTN += (f.ptn||0)*g/100;
+      totalLIP += (f.lip||0)*g/100;
+      totalFiber += (f.fiber||0)*g/100;
+    });
+    const kb = document.getElementById('meal-kcal-'+mi);
+    if (kb) kb.textContent = Math.round(mKcal) + ' kcal';
+    const mt = document.getElementById('meal-total-'+mi);
+    if (mt) mt.textContent = `Total: ${Math.round(mKcal)} kcal`;
+  });
+  set('dm-kcal', Math.round(totalKcal));
+  set('dm-cho', Math.round(totalCHO) + 'g');
+  set('dm-ptn', Math.round(totalPTN) + 'g');
+  set('dm-lip', Math.round(totalLIP) + 'g');
+  set('dm-fiber', Math.round(totalFiber) + 'g');
+}
+
+function populateDietPatientSelect() {
+  const sel = document.getElementById('diet-patient-select');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Selecionar Paciente —</option>' +
+    allPatients.map(p => `<option value="${p.id}">${p.nome||'Sem nome'} (${consultLabel(p.tipo)})</option>`).join('');
+}
+
+async function loadPatientForDiet() {
+  const id = document.getElementById('diet-patient-select')?.value;
+  if (!id || !db) return;
+  const snap = await fbFns.getDoc(fbFns.doc(db, 'pacientes', id));
+  if (!snap.exists()) return;
+  const data = snap.data();
+  const g = k => data['f_'+k] || data['f_'+k.replace(/-/g,'_')] || '';
+
+  document.getElementById('patient-diet-info').style.display = 'block';
+  document.getElementById('di-nome').textContent = g('nome') || 'Paciente';
+  document.getElementById('di-get').textContent = data.r_vet_termico ? data.r_vet_termico + ' kcal' : '—';
+  document.getElementById('di-meta').textContent = data.r_meta ? data.r_meta + ' kcal' : '—';
+  document.getElementById('di-obs').textContent = [g('alergias'), g('estilo-alim'), g('gosta') ? 'Gosta: '+g('gosta') : '', g('nao-gosta') ? 'Não gosta: '+g('nao-gosta') : ''].filter(Boolean).join(' | ') || 'Sem restrições cadastradas';
+
+  if (!mealsData.length) {
+    mealsData = MEAL_NAMES.map(n => ({ name:n, foods:[] }));
+    renderMeals();
+  }
+}
+
+function goToDietFromForm() {
+  showPage('dieta');
+  populateDietPatientSelect();
+  if (currentPatientId) {
+    const sel = document.getElementById('diet-patient-select');
+    if (sel) { sel.value = currentPatientId; loadPatientForDiet(); }
+  }
+  if (!mealsData.length) {
+    mealsData = MEAL_NAMES.map(n => ({ name:n, foods:[] }));
+    renderMeals();
+  }
+}
+
+async function saveDiet() {
+  const id = document.getElementById('diet-patient-select')?.value;
+  if (!id || !db) { toast('⚠️ Selecione um paciente primeiro'); return; }
+  try {
+    const ref = fbFns.doc(db, 'pacientes', id);
+    await fbFns.updateDoc(ref, { diet: mealsData, dietUpdatedAt: new Date().toISOString() });
+    toast('✅ Plano alimentar salvo!');
+  } catch(e) { toast('❌ Erro ao salvar plano'); }
+}
+
+function exportDietPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+  const W = 210, margin = 18;
+  const nome = document.getElementById('di-nome')?.textContent || 'Paciente';
+  const meta = document.getElementById('di-meta')?.textContent || '';
+
+  doc.setFillColor(74,53,37);
+  doc.rect(0,0,W,38,'F');
+  doc.setTextColor(232,221,208);
+  doc.setFontSize(20); doc.setFont('helvetica','bold');
+  doc.text('Plano Alimentar Personalizado', margin, 18);
+  doc.setFontSize(11); doc.setFont('helvetica','normal');
+  doc.text(`Paciente: ${nome} | Meta: ${meta} kcal/dia`, margin, 28);
+  doc.setFontSize(9);
+  doc.text(`Elaborado em: ${new Date().toLocaleDateString('pt-BR')}`, margin, 35);
+
+  let y = 48;
+  let totalKcal=0, totalCHO=0, totalPTN=0, totalLIP=0;
+
+  mealsData.forEach(meal => {
+    if (!meal.foods.length) return;
+    if (y > 250) { doc.addPage(); y = 20; }
+
+    doc.setFillColor(160,128,96);
+    doc.rect(margin, y-4, W-margin*2, 8, 'F');
+    doc.setTextColor(255,255,255);
+    doc.setFontSize(11); doc.setFont('helvetica','bold');
+    doc.text(meal.name, margin+3, y+1);
+    y += 8;
+
+    const rows = meal.foods.map(f => {
+      const g = f.grams || 100;
+      const kcal = Math.round(((f.cho||0)*4+(f.ptn||0)*4+(f.lip||0)*9)*g/100);
+      const cho = ((f.cho||0)*g/100).toFixed(1);
+      const ptn = ((f.ptn||0)*g/100).toFixed(1);
+      const lip = ((f.lip||0)*g/100).toFixed(1);
+      totalKcal+=kcal; totalCHO+=parseFloat(cho); totalPTN+=parseFloat(ptn); totalLIP+=parseFloat(lip);
+      return [f.name, `${g}g`, f.caseira||'—', `${kcal}`, `${cho}g`, `${ptn}g`, `${lip}g`];
+    });
+
+    doc.autoTable({
+      startY: y,
+      head: [['Alimento','Qtd','Medida Caseira','Kcal','CHO','PTN','LIP']],
+      body: rows,
+      theme:'grid',
+      headStyles:{ fillColor:[232,221,208], textColor:[74,53,37], fontSize:9 },
+      bodyStyles:{ fontSize:9, textColor:[46,31,15] },
+      alternateRowStyles:{ fillColor:[250,246,240] },
+      margin:{ left:margin, right:margin }
+    });
+    y = doc.lastAutoTable.finalY + 6;
+  });
+
+  // Totals
+  if (y > 260) { doc.addPage(); y = 20; }
+  doc.autoTable({
+    startY: y,
+    head: [['TOTAL DIÁRIO','Calorias','Carboidratos','Proteínas','Lipídios']],
+    body: [[nome, Math.round(totalKcal)+' kcal', totalCHO.toFixed(1)+'g', totalPTN.toFixed(1)+'g', totalLIP.toFixed(1)+'g']],
+    theme:'grid',
+    headStyles:{ fillColor:[74,53,37], textColor:[232,221,208], fontSize:10 },
+    bodyStyles:{ fontSize:11, textColor:[74,53,37], fontStyle:'bold' },
+    margin:{ left:margin, right:margin }
+  });
+
+  y = doc.lastAutoTable.finalY + 10;
+  doc.setFontSize(9); doc.setTextColor(160,128,96); doc.setFont('helvetica','italic');
+  doc.text('Este plano alimentar foi elaborado individualmente. Não compartilhe sem orientação profissional.', margin, y);
+
+  const pages = doc.internal.getNumberOfPages();
+  for(let i=1;i<=pages;i++){
+    doc.setPage(i);
+    doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(160,128,96);
+    doc.text(`NutriConsulta — Plano Alimentar — ${nome} — Página ${i}/${pages}`, margin, 290);
+  }
+
+  doc.save(`plano_alimentar_${nome.replace(/\s+/g,'_')}.pdf`);
+  toast('📄 Plano exportado com sucesso!');
+}
+
+// ══════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════
+window.addEventListener('load', () => {
+  if (!db) {
+    setTimeout(() => {
+      if (!db) {
+        const warn = document.createElement('div');
+        warn.style.cssText = 'position:fixed;top:60px;left:0;right:0;background:#8B3A3A;color:#fff;text-align:center;padding:12px;font-size:13px;z-index:200;';
+        warn.innerHTML = '⚠️ <strong>Firebase não configurado.</strong> Abra o arquivo index.html e insira suas credenciais Firebase em <code>firebaseConfig</code> para salvar os dados.';
+        document.body.appendChild(warn);
+      }
+    }, 3000);
+  }
+});
+</script>
+</body>
+</html>
