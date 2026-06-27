@@ -1,83 +1,2327 @@
-# Consultório · Nutrição
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Consultório · Nutrição</title>
+  <meta name="description" content="Sistema de atendimento nutricional remoto: anamnese, cálculo dietético e plano alimentar." />
 
-Sistema web para nutricionista autônoma com atendimento 100% remoto. Funciona como um site estático (sem instalação, sem servidor) e pode ser publicado gratuitamente no **GitHub Pages**. Os dados são salvos automaticamente na nuvem com o **Firebase** (plano gratuito) e, enquanto o Firebase não estiver configurado, ficam salvos no próprio navegador para você já testar tudo.
+  <!-- Tipografia -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
 
-## O que ele faz
+  <style>
+/* ============================================================================
+   styles.css — Identidade visual
+   Paleta neutra (off-white, bege, marrom) · Fraunces (display) + Jost (texto)
+   ============================================================================ */
 
-- **5 tipos de atendimento**: 1ª consulta padrão, 2ª consulta (retorno), 3ª consulta (acompanhamento), 1ª consulta para idosos e nutrição estética. Cada um com sua anamnese.
-- **Salvamento automático** de tudo que você digita (não existe botão "salvar": é contínuo).
-- **Cálculo dietético** com as fórmulas do seu material: TMB (FAO/OMS ou Harris & Benedict), GET pelo método VENTA ou pelo fator de atividade, IMC, % de gordura por dobras, cintura, RCQ e **meta calórica** para o objetivo. Você escolhe o tipo de cálculo para cada paciente.
-- **Relatório da consulta em PDF** (botão "Gerar relatório da consulta") com a anamnese preenchida e os resultados — para você extrair e usar na criação da dieta.
-- **Montador de dieta**: puxa a meta do cálculo, sugere refeições editáveis e calcula os alimentos por **grama e medida caseira**. Exporta o plano em PDF para entregar ao paciente.
-- **Pacientes**, **referências clínicas** (carências e ativos estéticos) e **configurações** do seu perfil (vai no cabeçalho dos PDFs).
+:root {
+  /* cores */
+  --bg:        #F6F1E9;
+  --bg-warm:   #F1E9DC;
+  --surface:   #FFFFFF;
+  --surface-2: #FBF7F0;
+  --bege:      #E7DBC9;
+  --bege-2:    #DBCBB2;
+  --linha:     #E4D9C6;
+  --linha-2:   #D7C9B2;
+  --marrom:    #6B5844;
+  --marrom-d:  #4A3C2C;
+  --marrom-dd: #342A1E;
+  --accent:    #9A7B52;
+  --accent-d:  #82663F;
+  --texto:     #3C3122;
+  --texto-m:   #847258;
+  --texto-mm:  #A2917A;
+  --ok:        #5C7A52;
+  --erro:      #A4573F;
+  --ok-bg:     #ECF0E4;
+  --erro-bg:   #F6E9E1;
 
-## Como usar agora mesmo (modo local)
+  /* tipografia */
+  --serif: 'Fraunces', Georgia, serif;
+  --sans:  'Jost', system-ui, sans-serif;
 
-Abra o `index.html` no navegador (ou publique no GitHub Pages). Sem configurar nada, o sistema já funciona salvando no seu navegador. Ideal para testar. **Atenção:** nesse modo os dados ficam só naquele aparelho/navegador. Para guardar na nuvem e acessar de qualquer lugar, configure o Firebase abaixo.
+  /* outros */
+  --raio:   14px;
+  --raio-s: 9px;
+  --sombra: 0 1px 2px rgba(74,60,44,.04), 0 8px 28px -12px rgba(74,60,44,.16);
+  --sombra-s: 0 1px 2px rgba(74,60,44,.05), 0 4px 14px -8px rgba(74,60,44,.14);
+  --maxw: 1180px;
+}
 
----
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  font-family: var(--sans);
+  font-weight: 400;
+  color: var(--texto);
+  background: var(--bg);
+  line-height: 1.55;
+  font-size: 15px;
+  letter-spacing: .01em;
+}
+h1,h2,h3,h4 { font-family: var(--serif); font-weight: 500; color: var(--marrom-d); margin: 0; letter-spacing: -.01em; line-height: 1.15; }
+a { color: var(--accent-d); }
+input, select, textarea, button { font-family: inherit; font-size: inherit; color: inherit; }
+button { cursor: pointer; }
+[hidden] { display: none !important; }
 
-## Passo 1 — Criar o projeto no Firebase (grátis)
+/* ---- Tela de carregamento ------------------------------------------------ */
+.loading-screen {
+  position: fixed; inset: 0; display: grid; place-items: center;
+  background: var(--bg); z-index: 100;
+}
+.loading-mark {
+  font-family: var(--serif); font-size: 56px; color: var(--accent);
+  width: 92px; height: 92px; border: 1px solid var(--linha-2); border-radius: 50%;
+  display: grid; place-items: center; animation: pulse 1.6s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100%{opacity:.4; transform:scale(.96);} 50%{opacity:1; transform:scale(1);} }
 
-1. Acesse <https://console.firebase.google.com> e clique em **Adicionar projeto**. Dê um nome (ex.: `consultorio-nutri`) e conclua (pode desativar o Google Analytics).
-2. No menu lateral, vá em **Criar > Firestore Database** → **Criar banco de dados** → comece em **modo de produção** → escolha a localização (ex.: `southamerica-east1`).
-3. Vá em **Criar > Authentication** → **Começar** → aba **Sign-in method** → ative **E-mail/senha**.
-4. Ainda no Authentication, aba **Users** → **Adicionar usuário**: crie o seu login (e-mail e senha) que você usará para entrar no site.
+/* ---- Toast --------------------------------------------------------------- */
+#toast-root { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 90; display: flex; flex-direction: column; gap: 8px; }
+.toast {
+  background: var(--marrom-dd); color: #F3ECE0; padding: 11px 20px; border-radius: 100px;
+  font-size: 13.5px; box-shadow: var(--sombra); animation: rise .3s ease;
+}
+.toast.erro { background: var(--erro); }
+@keyframes rise { from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:none;} }
 
-## Passo 2 — Pegar a configuração
+/* ---- Login --------------------------------------------------------------- */
+.auth-wrap { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+.auth-card {
+  width: 100%; max-width: 410px; background: var(--surface); border: 1px solid var(--linha);
+  border-radius: var(--raio); box-shadow: var(--sombra); padding: 42px 38px;
+}
+.auth-card .brand { text-align: center; margin-bottom: 26px; }
+.auth-card .brand .mark {
+  font-family: var(--serif); font-size: 34px; color: var(--accent);
+  width: 64px; height: 64px; border: 1px solid var(--linha-2); border-radius: 50%;
+  display: grid; place-items: center; margin: 0 auto 14px;
+}
+.auth-card h1 { font-size: 25px; }
+.auth-card .sub { color: var(--texto-m); font-size: 13.5px; margin-top: 5px; }
+.auth-toggle { text-align: center; margin-top: 18px; font-size: 13px; color: var(--texto-m); }
+.auth-toggle button { background: none; border: none; color: var(--accent-d); font-weight: 500; padding: 0; text-decoration: underline; }
+.local-note { margin-top: 18px; padding: 12px 14px; background: var(--surface-2); border: 1px solid var(--linha); border-radius: var(--raio-s); font-size: 12.5px; color: var(--texto-m); }
 
-1. No Firebase, clique na engrenagem ⚙ (canto superior) → **Configurações do projeto**.
-2. Em **Seus aplicativos**, clique no ícone **</>** (Web) para registrar um app web. Dê um apelido e clique em registrar.
-3. O Firebase mostrará um bloco `const firebaseConfig = { ... }`. Copie os valores.
-4. Abra o arquivo **`js/firebase-config.js`** deste projeto e cole os valores no lugar dos `COLE_AQUI...`:
+/* ---- Layout app ---------------------------------------------------------- */
+.shell { display: grid; grid-template-columns: 256px 1fr; min-height: 100vh; }
 
-```js
+.sidebar {
+  background: var(--marrom-dd); color: #E9DECC; padding: 26px 20px; display: flex; flex-direction: column; gap: 4px;
+  position: sticky; top: 0; height: 100vh;
+}
+.sidebar .logo { display: flex; align-items: center; gap: 11px; margin-bottom: 28px; padding: 0 6px; }
+.sidebar .logo .mark { font-family: var(--serif); font-size: 22px; color: #D8BE97; border: 1px solid #5b4a36; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; }
+.sidebar .logo .txt b { font-family: var(--serif); font-weight: 500; font-size: 17px; display: block; color: #F3E9D8; letter-spacing: .01em; }
+.sidebar .logo .txt span { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: #9c8b71; }
+.nav-item {
+  display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: var(--raio-s);
+  color: #CDBEA4; text-decoration: none; font-size: 14px; font-weight: 400; border: none; background: none; width: 100%; text-align: left;
+  transition: background .15s, color .15s;
+}
+.nav-item:hover { background: #3d3122; color: #F1E7D5; }
+.nav-item.active { background: #4a3c2c; color: #F7EFE0; }
+.nav-item .ic { width: 18px; text-align: center; opacity: .85; }
+.nav-sep { height: 1px; background: #463826; margin: 14px 6px; }
+.sidebar .foot { margin-top: auto; font-size: 11.5px; color: #8f7e64; padding: 0 8px; }
+.sidebar .foot .mode { display: inline-flex; align-items: center; gap: 6px; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: #7c9a6e; display: inline-block; }
+.dot.local { background: #c0a06a; }
+
+.main { padding: 38px 46px 80px; max-width: var(--maxw); width: 100%; margin: 0 auto; }
+
+/* ---- Topo de página ------------------------------------------------------ */
+.page-head { margin-bottom: 30px; }
+.eyebrow { font-size: 11.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--accent); font-weight: 500; }
+.page-head h1 { font-size: 33px; margin-top: 7px; }
+.page-head .lead { color: var(--texto-m); margin-top: 8px; font-size: 15px; max-width: 62ch; }
+.crumbs { font-size: 13px; color: var(--texto-m); margin-bottom: 14px; }
+.crumbs a { text-decoration: none; }
+.crumbs a:hover { text-decoration: underline; }
+
+/* ---- Botões -------------------------------------------------------------- */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px; justify-content: center;
+  padding: 11px 20px; border-radius: 100px; border: 1px solid transparent;
+  font-weight: 500; font-size: 14px; letter-spacing: .01em; transition: .15s; text-decoration: none;
+}
+.btn-primary { background: var(--marrom-d); color: #F4ECDE; }
+.btn-primary:hover { background: var(--marrom-dd); }
+.btn-accent { background: var(--accent); color: #FFF; }
+.btn-accent:hover { background: var(--accent-d); }
+.btn-ghost { background: var(--surface); color: var(--marrom-d); border-color: var(--linha-2); }
+.btn-ghost:hover { background: var(--surface-2); border-color: var(--bege-2); }
+.btn-soft { background: var(--bege); color: var(--marrom-d); }
+.btn-soft:hover { background: var(--bege-2); }
+.btn-sm { padding: 7px 14px; font-size: 13px; }
+.btn-danger { background: none; color: var(--erro); border-color: transparent; }
+.btn-danger:hover { background: var(--erro-bg); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ---- Cards de tipo de atendimento --------------------------------------- */
+.tipo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(228px, 1fr)); gap: 16px; }
+.tipo-card {
+  background: var(--surface); border: 1px solid var(--linha); border-radius: var(--raio);
+  padding: 22px; text-align: left; box-shadow: var(--sombra-s); transition: .18s; position: relative; overflow: hidden;
+}
+.tipo-card:hover { transform: translateY(-2px); box-shadow: var(--sombra); border-color: var(--bege-2); }
+.tipo-card .num { font-family: var(--serif); font-size: 13px; color: var(--accent); letter-spacing: .1em; }
+.tipo-card h3 { font-size: 20px; margin: 10px 0 6px; }
+.tipo-card p { font-size: 13px; color: var(--texto-m); line-height: 1.5; min-height: 38px; }
+.tipo-card .dur { margin-top: 14px; font-size: 12px; color: var(--texto-mm); display: flex; align-items: center; gap: 6px; }
+.tipo-card .tag { position: absolute; top: 16px; right: 16px; font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--accent-d); background: var(--bg-warm); padding: 4px 9px; border-radius: 100px; }
+
+/* ---- Seções / blocos ----------------------------------------------------- */
+.section-title { display: flex; align-items: baseline; gap: 12px; margin: 34px 0 18px; }
+.section-title .idx { font-family: var(--serif); font-size: 14px; color: var(--accent); min-width: 26px; }
+.section-title h2 { font-size: 22px; }
+.section-title .rule { flex: 1; height: 1px; background: var(--linha); }
+
+.card { background: var(--surface); border: 1px solid var(--linha); border-radius: var(--raio); box-shadow: var(--sombra-s); }
+.card-pad { padding: 24px 26px; }
+
+/* ---- Formulários --------------------------------------------------------- */
+.form-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px 18px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field.full   { grid-column: span 6; }
+.field.half   { grid-column: span 3; }
+.field.third  { grid-column: span 2; }
+.field label { font-size: 12.5px; font-weight: 500; color: var(--marrom); letter-spacing: .01em; }
+.field label .req { color: var(--erro); margin-left: 2px; }
+.field .ajuda { font-size: 11.5px; color: var(--texto-mm); }
+.field input, .field select, .field textarea {
+  background: var(--surface); border: 1px solid var(--linha-2); border-radius: var(--raio-s);
+  padding: 10px 12px; outline: none; transition: border-color .15s, box-shadow .15s; width: 100%;
+  color: var(--texto);
+}
+.field input:focus, .field select:focus, .field textarea:focus {
+  border-color: var(--accent); box-shadow: 0 0 0 3px rgba(154,123,82,.12);
+}
+.field textarea { resize: vertical; min-height: 64px; line-height: 1.5; }
+.field input::placeholder, .field textarea::placeholder { color: var(--texto-mm); }
+.checks { display: flex; flex-wrap: wrap; gap: 8px; }
+.check {
+  display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border: 1px solid var(--linha-2);
+  border-radius: 100px; font-size: 13px; cursor: pointer; user-select: none; background: var(--surface); transition: .12s;
+}
+.check input { display: none; }
+.check.on { background: var(--marrom-d); color: #F3ECDE; border-color: var(--marrom-d); }
+.check:hover { border-color: var(--bege-2); }
+
+.save-state { font-size: 12px; color: var(--texto-mm); display: inline-flex; align-items: center; gap: 6px; }
+.save-state .dot { background: var(--ok); }
+
+/* ---- Painel de cálculo --------------------------------------------------- */
+.calc-panel { background: var(--surface-2); border: 1px solid var(--linha); border-radius: var(--raio); padding: 26px; }
+.method-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px; }
+.method-opt { border: 1px solid var(--linha-2); border-radius: var(--raio-s); padding: 14px 16px; cursor: pointer; background: var(--surface); transition: .14s; }
+.method-opt.on { border-color: var(--accent); background: #FBF6EE; box-shadow: 0 0 0 3px rgba(154,123,82,.1); }
+.method-opt b { font-size: 14px; color: var(--marrom-d); display: block; }
+.method-opt span { font-size: 12px; color: var(--texto-m); }
+
+.result-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 14px; margin-top: 6px; }
+.result-card { background: var(--surface); border: 1px solid var(--linha); border-radius: var(--raio-s); padding: 16px 18px; }
+.result-card .lbl { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--texto-mm); }
+.result-card .val { font-family: var(--serif); font-size: 30px; color: var(--marrom-d); margin-top: 4px; line-height: 1; }
+.result-card .val small { font-size: 14px; color: var(--texto-m); font-family: var(--sans); }
+.result-card .cls { font-size: 12.5px; color: var(--accent-d); margin-top: 6px; font-weight: 500; }
+.result-card.alvo { background: var(--marrom-d); border-color: var(--marrom-d); }
+.result-card.alvo .lbl { color: #c8b596; }
+.result-card.alvo .val { color: #F6EEDF; }
+.result-card.alvo .cls { color: #d9c19c; }
+
+.macro-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-top: 14px; }
+.macro-box { border: 1px solid var(--linha); border-radius: var(--raio-s); padding: 13px 15px; background: var(--surface); }
+.macro-box .m-name { font-size: 12px; color: var(--texto-m); font-weight: 500; }
+.macro-box .m-g { font-family: var(--serif); font-size: 23px; color: var(--marrom-d); }
+.macro-box .m-extra { font-size: 11.5px; color: var(--texto-mm); }
+
+.steps { margin-top: 16px; font-size: 12.5px; color: var(--texto-m); background: var(--surface); border: 1px dashed var(--linha-2); border-radius: var(--raio-s); padding: 14px 16px; }
+.steps b { color: var(--marrom-d); }
+
+/* ---- Tabelas ------------------------------------------------------------- */
+.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.tbl th { text-align: left; font-weight: 500; color: var(--texto-m); font-size: 12px; letter-spacing: .04em; text-transform: uppercase; padding: 10px 12px; border-bottom: 1px solid var(--linha-2); }
+.tbl td { padding: 11px 12px; border-bottom: 1px solid var(--linha); }
+.tbl tr:last-child td { border-bottom: none; }
+.tbl tr:hover td { background: var(--surface-2); }
+.tbl .right { text-align: right; }
+
+/* ---- Lista de pacientes / atendimentos ----------------------------------- */
+.list-row {
+  display: flex; align-items: center; gap: 16px; padding: 15px 20px; border: 1px solid var(--linha);
+  border-radius: var(--raio-s); background: var(--surface); margin-bottom: 9px; transition: .14s; cursor: pointer;
+}
+.list-row:hover { border-color: var(--bege-2); box-shadow: var(--sombra-s); }
+.list-row .avatar { width: 42px; height: 42px; border-radius: 50%; background: var(--bege); color: var(--marrom-d); display: grid; place-items: center; font-family: var(--serif); font-size: 18px; flex: none; }
+.list-row .grow { flex: 1; min-width: 0; }
+.list-row .nome { font-weight: 500; color: var(--marrom-d); }
+.list-row .meta { font-size: 12.5px; color: var(--texto-m); }
+.pill { font-size: 11px; padding: 4px 10px; border-radius: 100px; background: var(--bg-warm); color: var(--accent-d); letter-spacing: .03em; white-space: nowrap; }
+.pill.r2 { background: #EDE7DA; } .pill.r3 { background: #E8E1D2; }
+.pill.idoso { background: #ECE4D6; } .pill.estetica { background: #F0E6DD; }
+
+.empty { text-align: center; padding: 60px 20px; color: var(--texto-m); }
+.empty .mark { font-family: var(--serif); font-size: 40px; color: var(--bege-2); }
+.empty p { margin: 10px 0 18px; }
+
+/* ---- Montador de dieta --------------------------------------------------- */
+.diet-top { display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 22px; }
+.target-bar { background: var(--surface); border: 1px solid var(--linha); border-radius: var(--raio); padding: 18px 22px; display: flex; flex-wrap: wrap; gap: 26px; align-items: center; }
+.target-bar .t-item .k { font-family: var(--serif); font-size: 24px; color: var(--marrom-d); }
+.target-bar .t-item .l { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--texto-mm); }
+.target-bar .bar { flex: 1; min-width: 200px; }
+.progress { height: 9px; background: var(--bege); border-radius: 100px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--accent); transition: width .3s; }
+.progress.over > span { background: var(--erro); }
+
+.meal { background: var(--surface); border: 1px solid var(--linha); border-radius: var(--raio); margin-bottom: 14px; overflow: hidden; }
+.meal-head { display: flex; align-items: center; gap: 10px; padding: 13px 18px; background: var(--surface-2); border-bottom: 1px solid var(--linha); }
+.meal-head input.meal-name { font-family: var(--serif); font-size: 17px; color: var(--marrom-d); border: 1px solid transparent; background: transparent; border-radius: 6px; padding: 3px 6px; flex: 1; }
+.meal-head input.meal-name:hover { border-color: var(--linha-2); }
+.meal-head input.meal-name:focus { border-color: var(--accent); outline: none; background: var(--surface); }
+.meal-head .m-kcal { font-size: 13px; color: var(--texto-m); }
+.meal-foods { padding: 6px 10px 12px; }
+.food-row { display: grid; grid-template-columns: 1fr 92px 130px 78px 30px; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 7px; }
+.food-row:hover { background: var(--surface-2); }
+.food-row input, .food-row select { padding: 7px 9px; font-size: 13px; border: 1px solid var(--linha-2); border-radius: 7px; background: var(--surface); }
+.food-row .fr-info { font-size: 11px; color: var(--texto-mm); grid-column: 1 / -1; padding: 0 8px 4px; }
+.food-row .x { background: none; border: none; color: var(--texto-mm); font-size: 17px; }
+.food-row .x:hover { color: var(--erro); }
+.add-food { display: flex; gap: 8px; align-items: center; padding: 8px; }
+.add-food input { flex: 1; padding: 8px 11px; border: 1px solid var(--linha-2); border-radius: 7px; background: var(--surface); }
+
+/* ---- Modal --------------------------------------------------------------- */
+.modal-bg { position: fixed; inset: 0; background: rgba(52,42,30,.4); display: grid; place-items: center; z-index: 80; padding: 20px; backdrop-filter: blur(2px); }
+.modal { background: var(--surface); border-radius: var(--raio); box-shadow: var(--sombra); width: 100%; max-width: 460px; padding: 28px; max-height: 86vh; overflow: auto; }
+.modal h3 { font-size: 21px; margin-bottom: 6px; }
+.modal .sub { color: var(--texto-m); font-size: 13.5px; margin-bottom: 18px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+.pick-list { display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow: auto; }
+.pick-row { padding: 12px 15px; border: 1px solid var(--linha); border-radius: var(--raio-s); cursor: pointer; }
+.pick-row:hover { border-color: var(--accent); background: var(--surface-2); }
+
+/* ---- Util ---------------------------------------------------------------- */
+.row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.row.between { justify-content: space-between; }
+.mt { margin-top: 18px; } .mt-s { margin-top: 10px; } .mb { margin-bottom: 18px; }
+.muted { color: var(--texto-m); }
+.sticky-actions {
+  position: sticky; bottom: 0; background: linear-gradient(to top, var(--bg) 65%, transparent);
+  padding: 18px 0 6px; margin-top: 26px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center;
+}
+.ref-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+
+/* ---- Responsivo ---------------------------------------------------------- */
+@media (max-width: 900px) {
+  .shell { grid-template-columns: 1fr; }
+  .sidebar { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px; padding: 14px 16px; }
+  .sidebar .logo { margin: 0 12px 0 0; }
+  .sidebar .nav-sep, .sidebar .foot { display: none; }
+  .nav-item { width: auto; padding: 8px 12px; }
+  .main { padding: 24px 18px 70px; }
+  .form-grid { grid-template-columns: repeat(2, 1fr); }
+  .field.full { grid-column: span 2; } .field.half { grid-column: span 2; } .field.third { grid-column: span 1; }
+  .method-grid { grid-template-columns: 1fr; }
+  .ref-grid { grid-template-columns: 1fr; }
+  .food-row { grid-template-columns: 1fr 1fr; }
+  .page-head h1 { font-size: 27px; }
+}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+  </style>
+</head>
+<body>
+  <div id="loading-screen" class="loading-screen">
+    <div class="loading-mark">N</div>
+  </div>
+
+  <div id="app" hidden></div>
+  <div id="modal-root"></div>
+  <div id="toast-root"></div>
+
+  <!-- Firebase (compat) — só é usado quando você preenche o FIREBASE_CONFIG abaixo -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+  <!-- Geração de PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+  <!-- ===================== APLICAÇÃO (tudo embutido) ===================== -->
+  <script>
+/* ---- firebase-config (edite aqui para ligar a nuvem) ---- */
+/* ============================================================================
+   firebase-config.js
+   ----------------------------------------------------------------------------
+   Cole aqui as credenciais do SEU projeto Firebase (plano gratuito "Spark").
+   Passo a passo completo no README.md.
+
+   Enquanto estiver com os valores "COLE_AQUI...", o site funciona em modo
+   LOCAL (salva só neste navegador). Assim que você preencher corretamente,
+   ele passa a salvar tudo na nuvem e a exigir login.
+   ============================================================================ */
+
 window.FIREBASE_CONFIG = {
-  apiKey: "AIza...",
-  authDomain: "seu-projeto.firebaseapp.com",
-  projectId: "seu-projeto",
-  storageBucket: "seu-projeto.appspot.com",
-  messagingSenderId: "000000000000",
-  appId: "1:000:web:abc123",
+  apiKey: "COLE_AQUI_SUA_API_KEY",
+  authDomain: "COLE_AQUI.firebaseapp.com",
+  projectId: "COLE_AQUI_PROJECT_ID",
+  storageBucket: "COLE_AQUI.appspot.com",
+  messagingSenderId: "COLE_AQUI",
+  appId: "COLE_AQUI"
 };
-```
 
-Pronto: ao recarregar o site, ele passa a usar a nuvem e a pedir login com o e-mail/senha que você criou.
+  </script>
+  <script>
+/* ============================================================================
+   data.js — Esquemas das anamneses, tabelas de cálculo e base de alimentos
+   Tudo aqui é DADO puro (sem lógica). Pode editar livremente: adicionar
+   perguntas, alimentos ou ajustar valores conforme sua prática.
+   ============================================================================ */
 
-## Passo 3 — Regras de segurança do Firestore
+/* ----------------------------------------------------------------------------
+   Campos de identificação reutilizados em todas as fichas
+---------------------------------------------------------------------------- */
+const IDENT_FIELDS = [
+  { id: 'nome',        label: 'Nome completo',      tipo: 'texto',  obrigatorio: true,  largura: 'full' },
+  { id: 'nascimento',  label: 'Data de nascimento', tipo: 'data',   largura: 'third' },
+  { id: 'sexo',        label: 'Sexo biológico',     tipo: 'select', opcoes: ['Feminino', 'Masculino'], largura: 'third', ajuda: 'Usado nos cálculos de TMB e composição corporal.' },
+  { id: 'estado_civil',label: 'Estado civil',       tipo: 'select', opcoes: ['Solteiro(a)', 'Casado(a)', 'Divorciado(a)', 'Viúvo(a)', 'União estável'], largura: 'third' },
+  { id: 'telefone',    label: 'Telefone / WhatsApp',tipo: 'texto',  largura: 'third' },
+  { id: 'email',       label: 'E-mail',             tipo: 'texto',  largura: 'third' },
+  { id: 'cidade_uf',   label: 'Cidade / UF',        tipo: 'texto',  largura: 'third' },
+  { id: 'profissao',   label: 'Profissão / ocupação',tipo: 'texto', largura: 'half' },
+  { id: 'indicacao',   label: 'Como conheceu / indicação', tipo: 'texto', largura: 'half' },
+];
 
-Para que **cada conta só enxergue os próprios dados**, copie o conteúdo do arquivo `firestore.rules` deste projeto e cole em **Firestore Database > Regras**, depois clique em **Publicar**. As regras garantem que um usuário autenticado só leia e grave dentro de `nutricionistas/{seu-id}`.
+/* Bloco de recordatório alimentar reutilizado */
+const RECORDATORIO_FIELDS = [
+  { id: 'r24_cafe',    label: 'Café da manhã (o que costuma comer e horário)', tipo: 'textarea', largura: 'full' },
+  { id: 'r24_lanche1', label: 'Lanche da manhã', tipo: 'textarea', largura: 'half' },
+  { id: 'r24_almoco',  label: 'Almoço', tipo: 'textarea', largura: 'half' },
+  { id: 'r24_lanche2', label: 'Lanche da tarde', tipo: 'textarea', largura: 'half' },
+  { id: 'r24_jantar',  label: 'Jantar', tipo: 'textarea', largura: 'half' },
+  { id: 'r24_ceia',    label: 'Ceia / antes de dormir', tipo: 'textarea', largura: 'half' },
+  { id: 'r24_belisco', label: 'Beliscos fora de hora (o quê e quando)', tipo: 'textarea', largura: 'half' },
+];
 
----
+/* ----------------------------------------------------------------------------
+   ESQUEMAS DAS FICHAS
+---------------------------------------------------------------------------- */
+const FORM_SCHEMAS = {
 
-## Passo 4 — Publicar no GitHub Pages
+  /* ===== 1. PRIMEIRA CONSULTA — PADRÃO ===================================== */
+  padrao: {
+    id: 'padrao',
+    nome: 'Primeira consulta — Padrão',
+    descricao: 'Anamnese completa para montar o plano alimentar do zero, adaptado à rotina.',
+    duracao: '45 min',
+    secoes: [
+      { titulo: 'Identificação', campos: IDENT_FIELDS },
 
-1. Crie um repositório no GitHub e suba todos os arquivos desta pasta (mantendo a estrutura `css/`, `js/`, `index.html`).
-2. No repositório, vá em **Settings > Pages**.
-3. Em **Source**, escolha **Deploy from a branch**, selecione a branch `main` e a pasta `/ (root)`. Salve.
-4. Em alguns instantes o site fica disponível em `https://SEU-USUARIO.github.io/SEU-REPOSITORIO/`.
+      { titulo: 'Objetivo e expectativas', campos: [
+        { id: 'objetivo_principal', label: 'Objetivo principal', tipo: 'select',
+          opcoes: ['Emagrecimento', 'Ganho de massa muscular', 'Reeducação alimentar', 'Saúde / controle de doença', 'Performance esportiva', 'Manutenção de peso', 'Outro'], largura: 'half' },
+        { id: 'objetivos_3', label: 'Três principais razões para a consulta', tipo: 'textarea', largura: 'full' },
+        { id: 'como_ajudar', label: 'Como você acha que posso te ajudar?', tipo: 'textarea', largura: 'full' },
+        { id: 'prazo', label: 'Existe um prazo ou evento (viagem, casamento, etc.)?', tipo: 'texto', largura: 'half' },
+        { id: 'nutri_anterior', label: 'Já foi a nutricionista? O que funcionou / não funcionou?', tipo: 'textarea', largura: 'full' },
+      ]},
 
-> Importante: o `firebase-config.js` contém chaves públicas do Firebase (é normal elas ficarem visíveis no front-end). A segurança real vem das **regras do Firestore** + **login por e-mail/senha**. Por isso o Passo 3 é essencial.
+      { titulo: 'História clínica', campos: [
+        { id: 'doencas', label: 'Doenças diagnosticadas', tipo: 'textarea', largura: 'full', placeholder: 'Diabetes, hipertensão, tireoide, SOP, gastrite...' },
+        { id: 'hist_familiar', label: 'Histórico familiar', tipo: 'checkbox',
+          opcoes: ['Diabetes', 'Hipertensão', 'Dislipidemia / colesterol', 'Obesidade', 'Doença cardíaca', 'Câncer', 'Doença da tireoide', 'Nenhum'], largura: 'full' },
+        { id: 'cirurgias', label: 'Cirurgias / internações relevantes', tipo: 'textarea', largura: 'half' },
+        { id: 'medicamentos', label: 'Medicamentos em uso (nome e dose)', tipo: 'textarea', largura: 'half',
+          ajuda: 'Verifique interações na aba Referências.' },
+        { id: 'suplementos', label: 'Suplementos / fitoterápicos em uso', tipo: 'textarea', largura: 'half' },
+        { id: 'alergias', label: 'Alergias e intolerâncias alimentares', tipo: 'textarea', largura: 'half', placeholder: 'Lactose, glúten, frutos do mar...' },
+        { id: 'exames', label: 'Exames laboratoriais recentes (valores relevantes)', tipo: 'textarea', largura: 'full', placeholder: 'Glicemia, HbA1c, colesterol total/HDL/LDL, TG, TSH, ferritina, vit. D...' },
+      ]},
 
-## Estrutura dos arquivos
+      { titulo: 'Sinais e sintomas', campos: [
+        { id: 'intestino', label: 'Hábito intestinal', tipo: 'select', opcoes: ['Diário', '1x a cada 2 dias', '2-3x por semana', 'Constipado', 'Diarreia frequente', 'Alternado'], largura: 'third' },
+        { id: 'digestao', label: 'Digestão', tipo: 'select', opcoes: ['Boa', 'Azia / refluxo', 'Gases / distensão', 'Empachamento', 'Náusea'], largura: 'third' },
+        { id: 'sono_qualidade', label: 'Qualidade do sono', tipo: 'select', opcoes: ['Excelente', 'Boa', 'Regular', 'Ruim'], largura: 'third' },
+        { id: 'estresse', label: 'Nível de estresse', tipo: 'select', opcoes: ['Baixo', 'Moderado', 'Alto', 'Muito alto'], largura: 'third' },
+        { id: 'energia', label: 'Disposição / energia no dia', tipo: 'select', opcoes: ['Alta', 'Média', 'Baixa', 'Oscila muito'], largura: 'third' },
+        { id: 'fome_emocional', label: 'Come por ansiedade / estresse?', tipo: 'select', opcoes: ['Não', 'Às vezes', 'Frequente', 'Sempre'], largura: 'third' },
+      ]},
 
-```
-index.html              página principal
-css/styles.css          identidade visual (off-white, bege, marrom · Fraunces + Jost)
-js/firebase-config.js   onde você cola a configuração do Firebase
-js/data.js              anamneses, tabelas de cálculo e base de alimentos (edite à vontade)
-js/calc.js              motor de cálculo (fórmulas do material)
-js/store.js             salvamento (nuvem ou local)
-js/app.js               a aplicação (telas, navegação, PDFs)
-firestore.rules         regras de segurança para colar no Firebase
-```
+      { titulo: 'Hábitos alimentares', campos: [
+        { id: 'refeicoes_dia', label: 'Quantas refeições faz por dia?', tipo: 'select', opcoes: ['1-2', '3', '4', '5', '6 ou mais'], largura: 'third' },
+        { id: 'agua', label: 'Copos de água por dia', tipo: 'select', opcoes: ['Menos de 3', '3-5', '6-8', 'Mais de 8'], largura: 'third' },
+        { id: 'horario_fome', label: 'Horário de maior fome', tipo: 'texto', largura: 'third' },
+        { id: 'quem_cozinha', label: 'Quem prepara as refeições?', tipo: 'select', opcoes: ['Eu mesmo(a)', 'Família', 'Empregada(o)', 'Marmita / delivery', 'Varia'], largura: 'third' },
+        { id: 'come_fora', label: 'Refeições feitas fora de casa por semana', tipo: 'texto', largura: 'third' },
+        { id: 'tempo_preparo', label: 'Tempo disponível para cozinhar', tipo: 'select', opcoes: ['Bastante', 'Moderado', 'Pouco', 'Quase nenhum'], largura: 'third' },
+        { id: 'alcool', label: 'Consumo de álcool', tipo: 'texto', largura: 'third', placeholder: 'Tipo e frequência' },
+        { id: 'ultraprocessados', label: 'Ultraprocessados / fast-food (frequência)', tipo: 'texto', largura: 'third' },
+        { id: 'cafeina', label: 'Café / cafeína por dia', tipo: 'texto', largura: 'third' },
+      ]},
 
-## Personalizar
+      { titulo: 'Recordatório alimentar (24h)', campos: RECORDATORIO_FIELDS },
 
-- **Perguntas das anamneses, alimentos e tabelas**: tudo está em `js/data.js`, em formato simples de editar.
-- **Seu nome, CRN e contatos** (cabeçalho dos PDFs): preencha na tela **Configurações** dentro do site.
+      { titulo: 'Preferências e restrições', campos: [
+        { id: 'padrao_alimentar', label: 'Padrão alimentar', tipo: 'checkbox',
+          opcoes: ['Onívoro', 'Vegetariano', 'Vegano', 'Low carb', 'Sem glúten', 'Sem lactose', 'Restrição religiosa'], largura: 'full' },
+        { id: 'ama', label: 'Alimentos que ama / não abre mão', tipo: 'textarea', largura: 'half' },
+        { id: 'nao_gosta', label: 'Alimentos que não gosta', tipo: 'textarea', largura: 'half' },
+        { id: 'frutas_consome', label: 'Frutas que costuma consumir', tipo: 'textarea', largura: 'half' },
+        { id: 'verduras_consome', label: 'Verduras e legumes que aceita bem', tipo: 'textarea', largura: 'half' },
+      ]},
 
-## Observações
+      { titulo: 'Rotina e estilo de vida', campos: [
+        { id: 'rotina', label: 'Descreva um dia típico (acordar, trabalho, refeições, dormir)', tipo: 'textarea', largura: 'full' },
+        { id: 'trabalho_horario', label: 'Horário de trabalho', tipo: 'texto', largura: 'half' },
+        { id: 'atividade_fisica', label: 'Atividade física (tipo, frequência, horário)', tipo: 'textarea', largura: 'half' },
+        { id: 'fumante', label: 'Tabagismo', tipo: 'select', opcoes: ['Não', 'Sim', 'Ex-fumante'], largura: 'third' },
+        { id: 'hora_dormir', label: 'Costuma dormir às', tipo: 'texto', largura: 'third' },
+        { id: 'hora_acordar', label: 'Costuma acordar às', tipo: 'texto', largura: 'third' },
+      ]},
 
-- Os valores de alimentos e da tabela de dobras são aproximados (base TACO/IBGE e Durnin & Wormersley); confira e ajuste conforme sua prática.
-- O sistema não substitui o julgamento clínico: ele organiza, calcula e gera documentos a partir do que você informa.
+      { titulo: 'Antropometria e metas', campos: [
+        { id: 'peso_atual', label: 'Peso atual (kg)', tipo: 'numero', largura: 'third' },
+        { id: 'peso_habitual', label: 'Peso habitual (kg)', tipo: 'numero', largura: 'third' },
+        { id: 'peso_desejado', label: 'Peso desejado (kg)', tipo: 'numero', largura: 'third' },
+        { id: 'obs_gerais', label: 'Observações da consulta', tipo: 'textarea', largura: 'full' },
+      ]},
+    ]
+  },
+
+  /* ===== 2. SEGUNDA CONSULTA — RETORNO ==================================== */
+  retorno2: {
+    id: 'retorno2',
+    nome: 'Segunda consulta — Retorno',
+    descricao: 'Acompanhamento do início do tratamento: adesão, primeiras mudanças e ajustes.',
+    duracao: '30 min',
+    secoes: [
+      { titulo: 'Identificação', campos: [
+        { id: 'nome', label: 'Nome completo', tipo: 'texto', obrigatorio: true, largura: 'full' },
+        { id: 'sexo', label: 'Sexo biológico', tipo: 'select', opcoes: ['Feminino', 'Masculino'], largura: 'third' },
+        { id: 'nascimento', label: 'Data de nascimento', tipo: 'data', largura: 'third' },
+        { id: 'dias_desde', label: 'Dias desde a última consulta', tipo: 'texto', largura: 'third' },
+      ]},
+      { titulo: 'Adesão ao plano', campos: [
+        { id: 'adesao', label: 'Adesão ao plano alimentar', tipo: 'select', opcoes: ['Total (>90%)', 'Boa (70-90%)', 'Parcial (40-70%)', 'Baixa (<40%)'], largura: 'half' },
+        { id: 'dificuldades', label: 'Principais dificuldades encontradas', tipo: 'textarea', largura: 'full' },
+        { id: 'funcionou', label: 'O que funcionou bem', tipo: 'textarea', largura: 'half' },
+        { id: 'nao_funcionou', label: 'O que não funcionou / precisa mudar', tipo: 'textarea', largura: 'half' },
+      ]},
+      { titulo: 'Mudanças percebidas', campos: [
+        { id: 'fome_saciedade', label: 'Fome e saciedade', tipo: 'select', opcoes: ['Melhor controle', 'Sem mudança', 'Mais fome', 'Muita vontade de doce'], largura: 'third' },
+        { id: 'energia_ret', label: 'Energia / disposição', tipo: 'select', opcoes: ['Melhorou', 'Igual', 'Piorou'], largura: 'third' },
+        { id: 'intestino_ret', label: 'Intestino', tipo: 'select', opcoes: ['Melhorou', 'Igual', 'Piorou'], largura: 'third' },
+        { id: 'sono_ret', label: 'Sono', tipo: 'select', opcoes: ['Melhorou', 'Igual', 'Piorou'], largura: 'third' },
+        { id: 'compulsao', label: 'Episódios de compulsão / beliscos', tipo: 'textarea', largura: 'full' },
+      ]},
+      { titulo: 'Rotina e exercício', campos: [
+        { id: 'atividade_ret', label: 'Atividade física atual', tipo: 'textarea', largura: 'half' },
+        { id: 'exames_novos', label: 'Novos exames ou sintomas', tipo: 'textarea', largura: 'half' },
+      ]},
+      { titulo: 'Reavaliação e metas', campos: [
+        { id: 'peso_atual', label: 'Peso atual (kg)', tipo: 'numero', largura: 'third' },
+        { id: 'ajustes', label: 'Ajustes desejados pelo paciente', tipo: 'textarea', largura: 'full' },
+        { id: 'metas_proximo', label: 'Metas para o próximo período', tipo: 'textarea', largura: 'full' },
+        { id: 'obs_gerais', label: 'Observações da consulta', tipo: 'textarea', largura: 'full' },
+      ]},
+    ]
+  },
+
+  /* ===== 3. TERCEIRA CONSULTA — ACOMPANHAMENTO ============================ */
+  retorno3: {
+    id: 'retorno3',
+    nome: 'Terceira consulta — Acompanhamento',
+    descricao: 'Consolidação de hábitos, análise de resultados e estratégia de manutenção.',
+    duracao: '30 min',
+    secoes: [
+      { titulo: 'Identificação', campos: [
+        { id: 'nome', label: 'Nome completo', tipo: 'texto', obrigatorio: true, largura: 'full' },
+        { id: 'sexo', label: 'Sexo biológico', tipo: 'select', opcoes: ['Feminino', 'Masculino'], largura: 'third' },
+        { id: 'nascimento', label: 'Data de nascimento', tipo: 'data', largura: 'third' },
+        { id: 'tempo_tratamento', label: 'Tempo de acompanhamento', tipo: 'texto', largura: 'third' },
+      ]},
+      { titulo: 'Evolução desde o início', campos: [
+        { id: 'resumo_evolucao', label: 'Resumo da evolução (peso, medidas, hábitos)', tipo: 'textarea', largura: 'full' },
+        { id: 'resultados', label: 'Resultados objetivos alcançados', tipo: 'textarea', largura: 'half' },
+        { id: 'satisfacao', label: 'Satisfação do paciente', tipo: 'select', opcoes: ['Muito satisfeito', 'Satisfeito', 'Neutro', 'Insatisfeito'], largura: 'half' },
+      ]},
+      { titulo: 'Hábitos e comportamento', campos: [
+        { id: 'adesao', label: 'Adesão atual', tipo: 'select', opcoes: ['Total (>90%)', 'Boa (70-90%)', 'Parcial (40-70%)', 'Baixa (<40%)'], largura: 'half' },
+        { id: 'habitos_consolidados', label: 'Hábitos já consolidados', tipo: 'textarea', largura: 'half' },
+        { id: 'habitos_dificeis', label: 'Hábitos ainda difíceis', tipo: 'textarea', largura: 'half' },
+        { id: 'relacao_comida', label: 'Relação com a comida / compulsão', tipo: 'textarea', largura: 'half' },
+      ]},
+      { titulo: 'Saúde geral', campos: [
+        { id: 'sono_estresse', label: 'Sono e estresse', tipo: 'textarea', largura: 'half' },
+        { id: 'exercicio_ret', label: 'Exercício físico', tipo: 'textarea', largura: 'half' },
+        { id: 'exames_acomp', label: 'Exames de acompanhamento', tipo: 'textarea', largura: 'full' },
+      ]},
+      { titulo: 'Reavaliação e manutenção', campos: [
+        { id: 'peso_atual', label: 'Peso atual (kg)', tipo: 'numero', largura: 'third' },
+        { id: 'estrategia_manutencao', label: 'Estratégia de manutenção / próximos passos', tipo: 'textarea', largura: 'full' },
+        { id: 'obs_gerais', label: 'Observações da consulta', tipo: 'textarea', largura: 'full' },
+      ]},
+    ]
+  },
+
+  /* ===== 4. PRIMEIRA CONSULTA — IDOSOS ==================================== */
+  idoso: {
+    id: 'idoso',
+    nome: 'Primeira consulta — Idosos',
+    descricao: 'Avaliação geriátrica com foco em risco nutricional, mastigação, mobilidade e suporte.',
+    duracao: '45 min',
+    secoes: [
+      { titulo: 'Identificação', campos: [
+        ...IDENT_FIELDS,
+        { id: 'acompanhante', label: 'Acompanhante / cuidador presente', tipo: 'texto', largura: 'half' },
+        { id: 'mora_sozinho', label: 'Mora sozinho(a)?', tipo: 'select', opcoes: ['Sim', 'Não — com familiares', 'Não — com cuidador'], largura: 'half' },
+      ]},
+      { titulo: 'Objetivo', campos: [
+        { id: 'objetivo_principal', label: 'Objetivo da consulta', tipo: 'textarea', largura: 'full' },
+      ]},
+      { titulo: 'História clínica e medicamentos', campos: [
+        { id: 'doencas', label: 'Doenças crônicas diagnosticadas', tipo: 'textarea', largura: 'full' },
+        { id: 'medicamentos', label: 'Medicamentos em uso — lista completa (polifarmácia)', tipo: 'textarea', largura: 'full', ajuda: 'Consulte interações com vitaminas/minerais na aba Referências.' },
+        { id: 'suplementos', label: 'Suplementos em uso', tipo: 'textarea', largura: 'half' },
+        { id: 'alergias', label: 'Alergias e intolerâncias', tipo: 'textarea', largura: 'half' },
+        { id: 'exames', label: 'Exames recentes (albumina, hemograma, vit. D, B12...)', tipo: 'textarea', largura: 'full' },
+      ]},
+      { titulo: 'Mastigação, deglutição e apetite', campos: [
+        { id: 'denticao', label: 'Dentição / prótese', tipo: 'select', opcoes: ['Dentição própria boa', 'Prótese adaptada', 'Prótese mal adaptada', 'Edêntulo sem prótese'], largura: 'half' },
+        { id: 'mastigacao', label: 'Dificuldade de mastigação', tipo: 'select', opcoes: ['Não', 'Leve', 'Moderada', 'Importante'], largura: 'half' },
+        { id: 'disfagia', label: 'Engasga ou tem dificuldade de engolir (disfagia)?', tipo: 'select', opcoes: ['Não', 'Com líquidos', 'Com sólidos', 'Ambos'], largura: 'half' },
+        { id: 'apetite', label: 'Apetite', tipo: 'select', opcoes: ['Bom', 'Reduzido', 'Muito reduzido'], largura: 'half' },
+        { id: 'paladar', label: 'Alteração de paladar / olfato', tipo: 'texto', largura: 'full' },
+      ]},
+      { titulo: 'Função intestinal e hidratação', campos: [
+        { id: 'intestino', label: 'Hábito intestinal', tipo: 'select', opcoes: ['Regular', 'Constipação', 'Diarreia', 'Alternado'], largura: 'half' },
+        { id: 'hidratacao', label: 'Ingestão de líquidos ao dia', tipo: 'texto', largura: 'half' },
+      ]},
+      { titulo: 'Capacidade funcional e cognição', campos: [
+        { id: 'mobilidade', label: 'Mobilidade', tipo: 'select', opcoes: ['Independente', 'Anda com apoio', 'Cadeira de rodas', 'Acamado'], largura: 'half' },
+        { id: 'quedas', label: 'Quedas no último ano', tipo: 'select', opcoes: ['Nenhuma', '1', '2 ou mais'], largura: 'half' },
+        { id: 'faz_compras', label: 'Faz compras e cozinha sozinho(a)?', tipo: 'select', opcoes: ['Sim, totalmente', 'Com ajuda', 'Não'], largura: 'half' },
+        { id: 'cognicao', label: 'Esquece de comer ou beber?', tipo: 'select', opcoes: ['Não', 'Às vezes', 'Frequentemente'], largura: 'half' },
+        { id: 'quem_prepara', label: 'Quem prepara as refeições?', tipo: 'texto', largura: 'full' },
+      ]},
+      { titulo: 'Risco nutricional e sarcopenia', campos: [
+        { id: 'perda_peso', label: 'Perda de peso involuntária recente', tipo: 'select', opcoes: ['Não', 'Sim, leve', 'Sim, importante (>5% em 6 meses)'], largura: 'half' },
+        { id: 'forca', label: 'Sinais de fraqueza / perda de força', tipo: 'select', opcoes: ['Não', 'Leve', 'Importante'], largura: 'half' },
+        { id: 'panturrilha', label: 'Circunferência da panturrilha (cm)', tipo: 'numero', largura: 'third', ajuda: '< 31 cm sugere risco de sarcopenia.' },
+      ]},
+      { titulo: 'Recordatório alimentar', campos: RECORDATORIO_FIELDS },
+      { titulo: 'Antropometria e metas', campos: [
+        { id: 'peso_atual', label: 'Peso atual (kg)', tipo: 'numero', largura: 'third' },
+        { id: 'peso_habitual', label: 'Peso habitual (kg)', tipo: 'numero', largura: 'third' },
+        { id: 'obs_gerais', label: 'Observações da consulta', tipo: 'textarea', largura: 'full' },
+      ]},
+    ]
+  },
+
+  /* ===== 5. NUTRIÇÃO ESTÉTICA ============================================ */
+  estetica: {
+    id: 'estetica',
+    nome: 'Nutrição estética',
+    descricao: 'Foco em composição corporal, pele, cabelo, unhas, retenção e qualidade tecidual.',
+    duracao: '45 min',
+    secoes: [
+      { titulo: 'Identificação', campos: IDENT_FIELDS },
+      { titulo: 'Objetivo estético', campos: [
+        { id: 'objetivo_estetico', label: 'Objetivos estéticos', tipo: 'checkbox',
+          opcoes: ['Redução de gordura localizada', 'Celulite', 'Flacidez', 'Retenção de líquido / inchaço', 'Qualidade da pele', 'Cabelo e unhas', 'Definição muscular'], largura: 'full' },
+        { id: 'areas_preocupacao', label: 'Áreas de maior preocupação', tipo: 'textarea', largura: 'half' },
+        { id: 'prazo_evento', label: 'Prazo ou evento alvo', tipo: 'texto', largura: 'half' },
+      ]},
+      { titulo: 'História hormonal', campos: [
+        { id: 'ciclo', label: 'Ciclo menstrual', tipo: 'select', opcoes: ['Regular', 'Irregular', 'Menopausa', 'Não se aplica'], largura: 'third' },
+        { id: 'anticoncepcional', label: 'Uso de anticoncepcional / TRH', tipo: 'texto', largura: 'third' },
+        { id: 'tpm', label: 'TPM / retenção pré-menstrual', tipo: 'select', opcoes: ['Não', 'Leve', 'Intensa'], largura: 'third' },
+        { id: 'tireoide_sop', label: 'Tireoide / SOP / alterações hormonais', tipo: 'texto', largura: 'full' },
+      ]},
+      { titulo: 'Pele, cabelo e unhas', campos: [
+        { id: 'pele', label: 'Pele', tipo: 'checkbox', opcoes: ['Oleosa', 'Seca', 'Acne', 'Manchas', 'Sensível', 'Boa'], largura: 'full' },
+        { id: 'cabelo', label: 'Cabelo (queda, ressecamento, brilho)', tipo: 'texto', largura: 'half' },
+        { id: 'unhas', label: 'Unhas (fracas, quebradiças)', tipo: 'texto', largura: 'half' },
+      ]},
+      { titulo: 'Hábitos que impactam a estética', campos: [
+        { id: 'agua', label: 'Ingestão de água por dia', tipo: 'select', opcoes: ['Menos de 1L', '1-2L', '2-3L', 'Mais de 3L'], largura: 'third' },
+        { id: 'sodio', label: 'Consumo de sódio / industrializados', tipo: 'select', opcoes: ['Baixo', 'Moderado', 'Alto'], largura: 'third' },
+        { id: 'acucar', label: 'Consumo de açúcar / doces', tipo: 'select', opcoes: ['Baixo', 'Moderado', 'Alto'], largura: 'third' },
+        { id: 'alcool', label: 'Álcool (tipo e frequência)', tipo: 'texto', largura: 'third' },
+        { id: 'sono_qualidade', label: 'Qualidade do sono', tipo: 'select', opcoes: ['Boa', 'Regular', 'Ruim'], largura: 'third' },
+        { id: 'estresse', label: 'Nível de estresse', tipo: 'select', opcoes: ['Baixo', 'Moderado', 'Alto'], largura: 'third' },
+        { id: 'intestino', label: 'Hábito intestinal (relação com inchaço)', tipo: 'select', opcoes: ['Regular', 'Constipado', 'Diarreia', 'Alternado'], largura: 'third' },
+      ]},
+      { titulo: 'Exercício e procedimentos', campos: [
+        { id: 'atividade_fisica', label: 'Atividade física (tipo, foco, frequência)', tipo: 'textarea', largura: 'half' },
+        { id: 'procedimentos', label: 'Procedimentos estéticos em andamento', tipo: 'textarea', largura: 'half', placeholder: 'Drenagem, criolipólise, radiofrequência...' },
+        { id: 'suplementos', label: 'Suplementos estéticos em uso', tipo: 'textarea', largura: 'full', placeholder: 'Colágeno, antioxidantes, ativos...' },
+      ]},
+      { titulo: 'Recordatório alimentar', campos: RECORDATORIO_FIELDS },
+      { titulo: 'Preferências e restrições', campos: [
+        { id: 'padrao_alimentar', label: 'Padrão alimentar', tipo: 'checkbox', opcoes: ['Onívoro', 'Vegetariano', 'Vegano', 'Low carb', 'Sem glúten', 'Sem lactose'], largura: 'full' },
+        { id: 'ama', label: 'Alimentos que não abre mão', tipo: 'textarea', largura: 'half' },
+        { id: 'nao_gosta', label: 'Alimentos que não gosta', tipo: 'textarea', largura: 'half' },
+      ]},
+      { titulo: 'Antropometria e composição', campos: [
+        { id: 'peso_atual', label: 'Peso atual (kg)', tipo: 'numero', largura: 'third' },
+        { id: 'peso_desejado', label: 'Peso desejado (kg)', tipo: 'numero', largura: 'third' },
+        { id: 'obs_gerais', label: 'Observações da consulta', tipo: 'textarea', largura: 'full' },
+      ]},
+    ]
+  },
+};
+
+/* ----------------------------------------------------------------------------
+   TABELAS DE CÁLCULO  (transcritas do seu material "calculosss.pdf")
+---------------------------------------------------------------------------- */
+const CALC_DATA = {
+
+  /* Fórmulas de TMB disponíveis para escolha */
+  formulasTMB: {
+    fao: {
+      nome: 'FAO/OMS (2001)',
+      descricao: 'Por faixa etária e sexo. Usa apenas peso. Recomendada pela OMS.',
+      precisaAltura: false,
+    },
+    harris: {
+      nome: 'Harris & Benedict (1919)',
+      descricao: 'Usa peso, altura e idade. Clássica e amplamente usada.',
+      precisaAltura: true,
+    },
+  },
+
+  /* Fatores de atividade (intensidade 1=leve, 2=moderada, 3=intensa) */
+  fatorAtividade: {
+    Feminino:  { 1: 1.56, 2: 1.64, 3: 1.82 },
+    Masculino: { 1: 1.55, 2: 1.78, 3: 2.10 },
+  },
+  intensidadeLabel: { 1: 'Leve', 2: 'Moderada', 3: 'Intensa' },
+
+  /* Método VENTA — kcal/dia a ajustar conforme ritmo de perda/ganho */
+  venta: [
+    { kgMes: 1.0, kcal: 256 },
+    { kgMes: 1.5, kcal: 384 },
+    { kgMes: 2.0, kcal: 513 },
+    { kgMes: 2.5, kcal: 641 },
+    { kgMes: 3.0, kcal: 770 },
+    { kgMes: 3.5, kcal: 898 },
+    { kgMes: 4.0, kcal: 1026 },
+  ],
+
+  /* IMC adultos */
+  imcAdulto: [
+    { max: 16,   classe: 'Magreza grau 3' },
+    { max: 16.9, classe: 'Magreza grau 2' },
+    { max: 18.4, classe: 'Magreza grau 1' },
+    { max: 24.9, classe: 'Eutrofia' },
+    { max: 29.9, classe: 'Sobrepeso' },
+    { max: 34.9, classe: 'Obesidade grau 1' },
+    { max: 39.9, classe: 'Obesidade grau 2' },
+    { max: Infinity, classe: 'Obesidade grau 3' },
+  ],
+
+  /* IMC idosos (>60 anos) */
+  imcIdoso: [
+    { max: 22, classe: 'Magreza' },
+    { max: 27, classe: 'Eutrofia' },
+    { max: Infinity, classe: 'Obesidade' },
+  ],
+
+  /* Referência de % de gordura corporal */
+  gorduraRef: {
+    Masculino: [
+      { max: 8,  classe: 'Magro' },
+      { max: 15, classe: 'Ótimo' },
+      { max: 20, classe: 'Leve adiposidade' },
+      { max: 24, classe: 'Adiposidade' },
+      { max: Infinity, classe: 'Obesidade' },
+    ],
+    Feminino: [
+      { max: 13, classe: 'Magro' },
+      { max: 23, classe: 'Ótimo' },
+      { max: 27, classe: 'Leve adiposidade' },
+      { max: 32, classe: 'Adiposidade' },
+      { max: Infinity, classe: 'Obesidade' },
+    ],
+  },
+
+  /* Circunferência da cintura */
+  cintura: {
+    Masculino: { aumentado: 94, muito: 102 },
+    Feminino:  { aumentado: 80, muito: 88 },
+  },
+  /* Relação cintura-quadril — limite de risco cardiovascular */
+  rcq: { Masculino: 1.0, Feminino: 0.85 },
+
+  /* Tabela Durnin & Wormersley — % de gordura pela soma de 4 dobras
+     (bíceps, tríceps, subescapular, supra-ilíaca).
+     Colunas: H17-29, H30-39, H40-49, H50+, M16-29, M30-39, M40-49, M50+
+     Valores ausentes no original foram interpolados; usar a soma mais próxima. */
+  dobras: {
+    somas: [15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100,105,110,115,120,125,130,135,140,145,150,155,160,165,170,175,180,185,190,195,200,205,210],
+    tabela: {
+      15:[4.8,null,null,null,10.5,null,null,null],
+      20:[8.1,12.2,12.2,12.6,14.1,17.0,19.8,21.4],
+      25:[10.5,14.2,15.0,15.6,16.8,19.4,22.2,24.0],
+      30:[12.9,16.2,17.7,18.6,19.5,21.8,24.5,26.6],
+      35:[14.7,17.7,19.6,20.8,21.5,23.7,26.4,28.5],
+      40:[16.4,19.2,21.4,22.9,23.4,25.5,28.2,30.3],
+      45:[17.7,20.4,23.0,24.7,25.0,26.9,29.6,31.9],
+      50:[19.0,21.5,24.6,26.5,26.5,28.2,31.0,33.4],
+      55:[20.1,22.5,25.9,27.9,27.8,29.4,32.1,34.6],
+      60:[21.2,23.5,27.1,29.2,29.1,30.6,33.2,35.7],
+      65:[22.2,24.3,28.2,30.4,30.2,31.6,34.1,36.7],
+      70:[23.1,25.1,29.3,31.6,31.2,32.5,35.0,37.7],
+      75:[24.0,25.9,30.3,32.7,32.2,33.4,35.9,38.7],
+      80:[24.8,26.6,31.2,33.8,33.1,34.3,36.7,39.6],
+      85:[25.5,27.2,32.1,34.8,34.0,35.1,37.5,40.4],
+      90:[26.2,27.8,33.0,35.8,35.6,35.8,38.3,41.2],
+      95:[26.9,28.4,33.7,36.6,36.4,36.5,39.0,41.9],
+      100:[27.6,29.0,34.4,37.4,37.1,37.2,39.7,42.6],
+      105:[28.2,29.6,35.1,37.8,37.8,37.9,40.4,43.3],
+      110:[28.8,30.1,35.8,39.0,38.4,38.6,41.0,43.9],
+      115:[29.4,30.6,36.4,39.7,39.0,39.1,41.5,44.5],
+      120:[30.0,31.1,37.0,40.4,39.6,39.6,42.0,45.1],
+      125:[30.5,31.5,37.6,41.1,40.2,40.1,42.5,45.7],
+      130:[31.0,31.9,38.2,41.8,40.8,40.6,43.0,46.2],
+      135:[31.5,32.3,38.7,42.4,41.3,41.1,43.5,46.7],
+      140:[32.0,32.7,39.2,43.0,41.8,41.6,44.0,47.2],
+      145:[32.5,33.1,39.7,43.6,42.3,42.1,44.5,47.7],
+      150:[32.9,33.5,40.2,44.1,42.8,42.6,45.0,48.2],
+      155:[33.3,33.9,40.7,44.6,43.3,43.1,45.4,48.7],
+      160:[33.7,34.3,41.2,45.1,43.7,43.6,45.8,49.2],
+      165:[34.1,34.6,41.6,45.6,44.1,44.0,46.2,49.6],
+      170:[34.5,34.8,42.0,46.1,null,44.4,46.6,50.0],
+      175:[34.9,null,null,null,null,44.8,47.0,50.4],
+      180:[35.3,null,null,null,null,45.2,47.4,50.8],
+      185:[35.6,null,null,null,null,45.6,47.8,51.2],
+      190:[35.9,null,null,null,null,45.9,48.2,51.6],
+      195:[null,null,null,null,null,46.2,48.5,52.0],
+      200:[null,null,null,null,null,46.5,48.8,52.4],
+      205:[null,null,null,null,null,null,49.1,52.7],
+      210:[null,null,null,null,null,null,49.4,53.0],
+    }
+  },
+
+  /* Distribuição de macronutrientes — presets (% do VET) */
+  macroPresets: {
+    'Padrão (15/55/30)':        { ptn: 15, cho: 55, lip: 30 },
+    'Emagrecimento (25/45/30)': { ptn: 25, cho: 45, lip: 30 },
+    'Hipertrofia (30/50/20)':   { ptn: 30, cho: 50, lip: 20 },
+    'Low carb (30/40/30)':      { ptn: 30, cho: 40, lip: 30 },
+    'Idoso / proteico (25/50/25)': { ptn: 25, cho: 50, lip: 25 },
+  },
+};
+
+/* ----------------------------------------------------------------------------
+   BASE DE ALIMENTOS  (valores aproximados por 100 g, base TACO/IBGE)
+   Edite, adicione ou ajuste à vontade. Campos:
+   nome, grupo, kcal, ptn, cho, lip (por 100 g), medida (caseira), g (gramas da medida)
+---------------------------------------------------------------------------- */
+const FOOD_DB = [
+  // Cereais e tubérculos
+  { nome: 'Arroz branco cozido', grupo: 'Cereais', kcal: 128, ptn: 2.5, cho: 28.1, lip: 0.2, medida: 'colher de sopa cheia', g: 25 },
+  { nome: 'Arroz integral cozido', grupo: 'Cereais', kcal: 124, ptn: 2.6, cho: 25.8, lip: 1.0, medida: 'colher de sopa cheia', g: 25 },
+  { nome: 'Macarrão cozido', grupo: 'Cereais', kcal: 158, ptn: 5.8, cho: 30.9, lip: 0.9, medida: 'pegador', g: 60 },
+  { nome: 'Batata inglesa cozida', grupo: 'Tubérculos', kcal: 52, ptn: 1.2, cho: 11.9, lip: 0.0, medida: 'unidade média', g: 130 },
+  { nome: 'Batata doce cozida', grupo: 'Tubérculos', kcal: 77, ptn: 0.6, cho: 18.4, lip: 0.1, medida: 'fatia média', g: 80 },
+  { nome: 'Mandioca cozida', grupo: 'Tubérculos', kcal: 125, ptn: 0.6, cho: 30.1, lip: 0.3, medida: 'pedaço médio', g: 90 },
+  { nome: 'Pão francês', grupo: 'Pães', kcal: 300, ptn: 8.0, cho: 58.6, lip: 3.1, medida: 'unidade', g: 50 },
+  { nome: 'Pão de forma integral', grupo: 'Pães', kcal: 253, ptn: 9.4, cho: 49.9, lip: 3.5, medida: 'fatia', g: 25 },
+  { nome: 'Tapioca (goma)', grupo: 'Cereais', kcal: 240, ptn: 0.0, cho: 60.0, lip: 0.0, medida: 'colher de sopa', g: 20 },
+  { nome: 'Aveia em flocos', grupo: 'Cereais', kcal: 394, ptn: 13.9, cho: 66.6, lip: 8.5, medida: 'colher de sopa', g: 15 },
+  { nome: 'Granola', grupo: 'Cereais', kcal: 471, ptn: 11.0, cho: 64.0, lip: 17.0, medida: 'colher de sopa', g: 18 },
+
+  // Proteínas
+  { nome: 'Peito de frango grelhado', grupo: 'Carnes', kcal: 159, ptn: 32.0, cho: 0.0, lip: 2.5, medida: 'filé médio', g: 100 },
+  { nome: 'Coxa de frango assada (s/ pele)', grupo: 'Carnes', kcal: 215, ptn: 28.0, cho: 0.0, lip: 11.0, medida: 'unidade', g: 90 },
+  { nome: 'Patinho moído cozido', grupo: 'Carnes', kcal: 219, ptn: 35.0, cho: 0.0, lip: 8.0, medida: 'colher de sopa', g: 30 },
+  { nome: 'Bife de alcatra grelhado', grupo: 'Carnes', kcal: 241, ptn: 32.0, cho: 0.0, lip: 12.0, medida: 'bife médio', g: 100 },
+  { nome: 'Filé de tilápia grelhado', grupo: 'Pescados', kcal: 128, ptn: 26.0, cho: 0.0, lip: 2.7, medida: 'filé', g: 100 },
+  { nome: 'Salmão grelhado', grupo: 'Pescados', kcal: 211, ptn: 23.0, cho: 0.0, lip: 13.0, medida: 'posta', g: 100 },
+  { nome: 'Atum em água (lata)', grupo: 'Pescados', kcal: 116, ptn: 26.0, cho: 0.0, lip: 1.0, medida: 'lata escorrida', g: 120 },
+  { nome: 'Ovo de galinha cozido', grupo: 'Ovos', kcal: 146, ptn: 13.3, cho: 0.6, lip: 9.5, medida: 'unidade', g: 50 },
+  { nome: 'Clara de ovo cozida', grupo: 'Ovos', kcal: 52, ptn: 11.0, cho: 0.7, lip: 0.0, medida: 'unidade', g: 33 },
+
+  // Leguminosas
+  { nome: 'Feijão carioca cozido', grupo: 'Leguminosas', kcal: 76, ptn: 4.8, cho: 13.6, lip: 0.5, medida: 'concha média', g: 90 },
+  { nome: 'Feijão preto cozido', grupo: 'Leguminosas', kcal: 77, ptn: 4.5, cho: 14.0, lip: 0.5, medida: 'concha média', g: 90 },
+  { nome: 'Lentilha cozida', grupo: 'Leguminosas', kcal: 93, ptn: 6.3, cho: 16.3, lip: 0.5, medida: 'colher de sopa', g: 30 },
+  { nome: 'Grão-de-bico cozido', grupo: 'Leguminosas', kcal: 130, ptn: 8.4, cho: 18.0, lip: 2.6, medida: 'colher de sopa', g: 30 },
+  { nome: 'Soja / proteína texturizada hidratada', grupo: 'Leguminosas', kcal: 105, ptn: 14.0, cho: 7.0, lip: 1.5, medida: 'colher de sopa', g: 30 },
+
+  // Laticínios
+  { nome: 'Leite desnatado', grupo: 'Laticínios', kcal: 35, ptn: 3.4, cho: 4.9, lip: 0.2, medida: 'copo (200 ml)', g: 200 },
+  { nome: 'Leite integral', grupo: 'Laticínios', kcal: 61, ptn: 3.2, cho: 4.7, lip: 3.3, medida: 'copo (200 ml)', g: 200 },
+  { nome: 'Iogurte natural integral', grupo: 'Laticínios', kcal: 61, ptn: 3.8, cho: 4.7, lip: 3.0, medida: 'pote (170 g)', g: 170 },
+  { nome: 'Iogurte natural desnatado', grupo: 'Laticínios', kcal: 41, ptn: 4.1, cho: 5.5, lip: 0.2, medida: 'pote (170 g)', g: 170 },
+  { nome: 'Queijo minas frescal', grupo: 'Laticínios', kcal: 264, ptn: 17.4, cho: 3.2, lip: 20.2, medida: 'fatia', g: 30 },
+  { nome: 'Queijo mussarela', grupo: 'Laticínios', kcal: 280, ptn: 22.0, cho: 3.0, lip: 21.0, medida: 'fatia', g: 20 },
+  { nome: 'Requeijão', grupo: 'Laticínios', kcal: 257, ptn: 9.6, cho: 3.0, lip: 23.0, medida: 'colher de sopa', g: 30 },
+
+  // Frutas
+  { nome: 'Banana prata', grupo: 'Frutas', kcal: 98, ptn: 1.3, cho: 26.0, lip: 0.1, medida: 'unidade', g: 70 },
+  { nome: 'Maçã', grupo: 'Frutas', kcal: 56, ptn: 0.3, cho: 15.2, lip: 0.0, medida: 'unidade', g: 130 },
+  { nome: 'Mamão papaia', grupo: 'Frutas', kcal: 40, ptn: 0.5, cho: 10.4, lip: 0.1, medida: 'fatia', g: 150 },
+  { nome: 'Laranja', grupo: 'Frutas', kcal: 37, ptn: 1.0, cho: 8.9, lip: 0.1, medida: 'unidade', g: 130 },
+  { nome: 'Morango', grupo: 'Frutas', kcal: 30, ptn: 0.9, cho: 6.8, lip: 0.3, medida: 'xícara', g: 150 },
+  { nome: 'Abacate', grupo: 'Frutas', kcal: 96, ptn: 1.2, cho: 6.0, lip: 8.4, medida: 'colher de sopa', g: 30 },
+  { nome: 'Uva', grupo: 'Frutas', kcal: 53, ptn: 0.7, cho: 13.6, lip: 0.2, medida: 'cacho pequeno', g: 100 },
+
+  // Hortaliças
+  { nome: 'Alface', grupo: 'Hortaliças', kcal: 11, ptn: 1.3, cho: 1.7, lip: 0.2, medida: 'prato', g: 50 },
+  { nome: 'Tomate', grupo: 'Hortaliças', kcal: 15, ptn: 1.1, cho: 3.1, lip: 0.2, medida: 'unidade', g: 80 },
+  { nome: 'Brócolis cozido', grupo: 'Hortaliças', kcal: 25, ptn: 2.1, cho: 4.4, lip: 0.5, medida: 'colher de sopa', g: 30 },
+  { nome: 'Cenoura crua', grupo: 'Hortaliças', kcal: 34, ptn: 1.3, cho: 7.7, lip: 0.2, medida: 'unidade', g: 70 },
+  { nome: 'Abobrinha cozida', grupo: 'Hortaliças', kcal: 19, ptn: 1.1, cho: 2.9, lip: 0.2, medida: 'colher de sopa', g: 30 },
+
+  // Gorduras e oleaginosas
+  { nome: 'Azeite de oliva', grupo: 'Gorduras', kcal: 884, ptn: 0.0, cho: 0.0, lip: 100.0, medida: 'colher de sopa', g: 8 },
+  { nome: 'Castanha de caju', grupo: 'Oleaginosas', kcal: 570, ptn: 18.5, cho: 29.1, lip: 46.3, medida: 'unidade', g: 5 },
+  { nome: 'Castanha-do-pará', grupo: 'Oleaginosas', kcal: 643, ptn: 14.5, cho: 15.1, lip: 63.5, medida: 'unidade', g: 5 },
+  { nome: 'Pasta de amendoim', grupo: 'Oleaginosas', kcal: 600, ptn: 25.0, cho: 20.0, lip: 50.0, medida: 'colher de sopa', g: 20 },
+  { nome: 'Chia', grupo: 'Sementes', kcal: 486, ptn: 16.5, cho: 42.0, lip: 30.7, medida: 'colher de sopa', g: 12 },
+
+  // Outros
+  { nome: 'Whey protein (pó)', grupo: 'Suplementos', kcal: 400, ptn: 80.0, cho: 8.0, lip: 6.0, medida: 'scoop', g: 30 },
+  { nome: 'Mel', grupo: 'Açúcares', kcal: 309, ptn: 0.0, cho: 84.0, lip: 0.0, medida: 'colher de sopa', g: 20 },
+];
+
+/* ----------------------------------------------------------------------------
+   REFERÊNCIAS RÁPIDAS (resumo do seu material — sinais de carência e ativos)
+---------------------------------------------------------------------------- */
+const REFERENCIAS = {
+  carencias: [
+    ['Cabelo', 'Alopecia, quebradiço, despigmentado, ressecado', 'Proteína, Vit. A, Zn, Biotina (B7), Vit. E'],
+    ['Olhos', 'Palidez conjuntival, cegueira noturna, xerose', 'Ferro, Vit. A, Zn'],
+    ['Lábios', 'Estomatite angular, queilite', 'B2, B3, B6'],
+    ['Língua', 'Glossite, língua magenta, hipogeusia', 'B2, B6, B9, B12, Zn'],
+    ['Gengivas', 'Esponjosas, sangramento', 'Vit. C'],
+    ['Pele', 'Dermatite seborreica, xerose, petéquias, má cicatrização', 'B2, B6, Zn, Vit. A, C, K, Niacina'],
+    ['Unhas', 'Coiloníquia, quebradiças', 'Ferro'],
+    ['Músculo', 'Atrofia, flacidez de panturrilha', 'Vit. D, B1, Cálcio, Proteína'],
+    ['Sist. nervoso', 'Alterações psicomotoras, formigamento, demência', 'B1, B6, B12'],
+  ],
+  ativosEsteticos: [
+    ['Pycnogenol', 'Pinus pinaster', 'Fortalece capilares, protege colágeno e elastina, antioxidante'],
+    ['Astaxantina', 'Microalga', 'Antioxidante potente, anti-inflamatório, fotoproteção'],
+    ['Quercetina', 'Vegetais', 'Antioxidante, anti-inflamatório — usual 400 mg/dia'],
+    ['Coenzima Q10', 'Endógena', 'Antioxidante, saúde mitocondrial, pele'],
+    ['Luteína / Zeaxantina', 'Flores', 'Antioxidante, saúde da pele e dos olhos'],
+    ['Rutina', 'Vegetais', 'Fortalece capilares, varizes — ~100 mg/dia'],
+  ],
+};
+
+  </script>
+  <script>
+/* ============================================================================
+   calc.js — Motor de cálculo dietético
+   Todas as fórmulas seguem o material "calculosss.pdf".
+   ============================================================================ */
+
+const Calc = {
+
+  /* Idade a partir da data de nascimento (string yyyy-mm-dd) */
+  idade(nascimento) {
+    if (!nascimento) return null;
+    const n = new Date(nascimento);
+    if (isNaN(n)) return null;
+    const hoje = new Date();
+    let i = hoje.getFullYear() - n.getFullYear();
+    const m = hoje.getMonth() - n.getMonth();
+    if (m < 0 || (m === 0 && hoje.getDate() < n.getDate())) i--;
+    return i;
+  },
+
+  /* ---- TMB ---------------------------------------------------------------- */
+  /* FAO/OMS (2001) — por faixa etária e sexo, usa só peso */
+  tmbFAO(sexo, peso, idade) {
+    const f = sexo === 'Masculino';
+    if (idade <= 30) return f ? 15.057 * peso + 692.2 : 14.818 * peso + 486.6;
+    if (idade <= 60) return f ? 11.472 * peso + 873.1 : 8.126 * peso + 845.6;
+    return f ? 11.711 * peso + 587.7 : 9.082 * peso + 658.5;
+  },
+
+  /* Harris & Benedict (1919) — peso, altura (cm), idade */
+  tmbHarris(sexo, peso, alturaCm, idade) {
+    return sexo === 'Masculino'
+      ? 66.5 + 13.8 * peso + 5 * alturaCm - 6.8 * idade
+      : 655.1 + 9.6 * peso + 1.8 * alturaCm - 4.7 * idade;
+  },
+
+  tmb(formula, { sexo, peso, alturaCm, idade }) {
+    return formula === 'harris'
+      ? this.tmbHarris(sexo, peso, alturaCm, idade)
+      : this.tmbFAO(sexo, peso, idade);
+  },
+
+  fatorAtividade(sexo, intensidade) {
+    return CALC_DATA.fatorAtividade[sexo][intensidade];
+  },
+
+  /* ---- GET / VET ---------------------------------------------------------- */
+  /* Método VENTA (documento): separa horas de sono das horas de rotina.
+     Ve1 = (TMB/24) × horas de sono
+     Ve2 = (TMB/24) × (24 − sono) × fator de atividade
+     VET = (Ve1 + Ve2) × 1,1  (efeito termogênico do alimento) */
+  getVENTA(tmb, horasSono, fator) {
+    const porHora = tmb / 24;
+    const ve1 = porHora * horasSono;
+    const ve2 = porHora * (24 - horasSono) * fator;
+    const bruto = ve1 + ve2;
+    const final = bruto * 1.1;
+    return { porHora, ve1, ve2, bruto, termogenese: final - bruto, final };
+  },
+
+  /* Método do fator de atividade simples: GET = TMB × fator */
+  getFator(tmb, fator) {
+    const final = tmb * fator;
+    return { porHora: null, ve1: null, ve2: null, bruto: final, termogenese: 0, final };
+  },
+
+  get(metodo, { tmb, horasSono, fator }) {
+    return metodo === 'fator' ? this.getFator(tmb, fator) : this.getVENTA(tmb, horasSono, fator);
+  },
+
+  /* ---- IMC ---------------------------------------------------------------- */
+  imc(peso, alturaCm) {
+    const m = alturaCm / 100;
+    return peso / (m * m);
+  },
+  classificaIMC(imc, idade) {
+    const tabela = idade != null && idade > 60 ? CALC_DATA.imcIdoso : CALC_DATA.imcAdulto;
+    for (const faixa of tabela) if (imc <= faixa.max) return faixa.classe;
+    return '—';
+  },
+
+  /* ---- Meta calórica (método VENTA de déficit/superávit) ------------------ */
+  ajusteVENTA(kgMes) {
+    // valor exato ou mais próximo da tabela
+    let melhor = CALC_DATA.venta[0];
+    let dif = Infinity;
+    for (const v of CALC_DATA.venta) {
+      const d = Math.abs(v.kgMes - kgMes);
+      if (d < dif) { dif = d; melhor = v; }
+    }
+    return melhor;
+  },
+  metaCalorica(vet, objetivo, kgMes) {
+    if (objetivo === 'manter') return { alvo: vet, ajuste: 0, kgMes: 0 };
+    const v = this.ajusteVENTA(kgMes);
+    const ajuste = objetivo === 'perder' ? -v.kcal : v.kcal;
+    return { alvo: vet + ajuste, ajuste, kgMes: v.kgMes, kcalTabela: v.kcal };
+  },
+
+  /* ---- Composição corporal (dobras Durnin & Wormersley) ------------------- */
+  colunaDobras(sexo, idade) {
+    // índices: H17-29,H30-39,H40-49,H50+, M16-29,M30-39,M40-49,M50+
+    const base = sexo === 'Masculino' ? 0 : 4;
+    if (idade < 30) return base + 0;
+    if (idade < 40) return base + 1;
+    if (idade < 50) return base + 2;
+    return base + 3;
+  },
+  gorduraDobras(somaDobras, sexo, idade) {
+    const { somas, tabela } = CALC_DATA.dobras;
+    // soma mais próxima existente na tabela
+    let chave = somas[0], dif = Infinity;
+    for (const s of somas) { const d = Math.abs(s - somaDobras); if (d < dif) { dif = d; chave = s; } }
+    const col = this.colunaDobras(sexo, idade);
+    let val = tabela[chave][col];
+    // se célula vazia, procura a linha existente mais próxima com valor
+    if (val == null) {
+      for (let i = 0; i < somas.length; i++) {
+        const acima = tabela[somas[i]][col];
+        if (acima != null && Math.abs(somas[i] - somaDobras) < 40) { val = acima; break; }
+      }
+    }
+    return val;
+  },
+  classificaGordura(pct, sexo) {
+    for (const faixa of CALC_DATA.gorduraRef[sexo]) if (pct <= faixa.max) return faixa.classe;
+    return '—';
+  },
+
+  /* ---- Circunferências ---------------------------------------------------- */
+  classificaCintura(cm, sexo) {
+    const r = CALC_DATA.cintura[sexo];
+    if (cm >= r.muito) return 'Muito aumentado (risco elevado)';
+    if (cm >= r.aumentado) return 'Aumentado (risco)';
+    return 'Adequado';
+  },
+  rcq(cintura, quadril, sexo) {
+    if (!cintura || !quadril) return null;
+    const valor = cintura / quadril;
+    const limite = CALC_DATA.rcq[sexo];
+    return { valor, risco: valor > limite, limite };
+  },
+
+  /* ---- Macronutrientes ---------------------------------------------------- */
+  macros(vet, dist, peso) {
+    const kcal = {
+      ptn: vet * dist.ptn / 100,
+      cho: vet * dist.cho / 100,
+      lip: vet * dist.lip / 100,
+    };
+    const g = {
+      ptn: kcal.ptn / 4,
+      cho: kcal.cho / 4,
+      lip: kcal.lip / 9,
+    };
+    const gkg = peso ? { ptn: g.ptn / peso, cho: g.cho / peso, lip: g.lip / peso } : null;
+    return { kcal, g, gkg };
+  },
+
+  /* ---- Resultado completo ------------------------------------------------- */
+  /* entrada: {sexo, idade, peso, alturaCm, horasSono, intensidade,
+               formulaTMB, metodoGET, objetivo, kgMes, macroDist,
+               cintura?, quadril?, somaDobras?} */
+  completo(e) {
+    const out = { entrada: e, avisos: [] };
+
+    out.idade = e.idade;
+    out.tmb = this.tmb(e.formulaTMB, e);
+    out.fator = this.fatorAtividade(e.sexo, e.intensidade);
+    out.get = this.get(e.metodoGET, { tmb: out.tmb, horasSono: e.horasSono, fator: out.fator });
+    out.vet = out.get.final;
+
+    if (e.alturaCm) {
+      out.imc = this.imc(e.peso, e.alturaCm);
+      out.imcClasse = this.classificaIMC(out.imc, e.idade);
+    }
+
+    out.meta = this.metaCalorica(out.vet, e.objetivo, e.kgMes);
+
+    if (e.macroDist) out.macro = this.macros(out.meta.alvo, e.macroDist, e.peso);
+
+    if (e.somaDobras) {
+      out.gordura = this.gorduraDobras(e.somaDobras, e.sexo, e.idade);
+      if (out.gordura != null) out.gorduraClasse = this.classificaGordura(out.gordura, e.sexo);
+    }
+    if (e.cintura) out.cinturaClasse = this.classificaCintura(e.cintura, e.sexo);
+    if (e.cintura && e.quadril) out.rcq = this.rcq(e.cintura, e.quadril, e.sexo);
+
+    return out;
+  },
+};
+
+  </script>
+  <script>
+/* ============================================================================
+   store.js — Armazenamento na nuvem (Firebase) com fallback local
+   - Se o firebase-config.js estiver preenchido, usa Firestore + login.
+   - Caso contrário, salva no próprio navegador (localStorage) para você
+     testar o site imediatamente. Os dados ficam no aparelho até configurar
+     o Firebase.
+   ============================================================================ */
+
+const Store = (() => {
+  let mode = 'local';            // 'cloud' | 'local'
+  let db = null, auth = null, uid = null;
+  let authCb = null;
+
+  function configurado() {
+    const c = window.FIREBASE_CONFIG;
+    return c && c.apiKey && !String(c.apiKey).includes('COLE_') && c.projectId;
+  }
+
+  function uuid() {
+    return 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 9);
+  }
+
+  /* -------- inicialização ------------------------------------------------- */
+  function init(onAuthChange) {
+    authCb = onAuthChange;
+    if (configurado() && window.firebase) {
+      try {
+        firebase.initializeApp(window.FIREBASE_CONFIG);
+        db = firebase.firestore();
+        auth = firebase.auth();
+        mode = 'cloud';
+        // persistência offline (continua funcionando sem internet)
+        db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+        auth.onAuthStateChanged(u => {
+          uid = u ? u.uid : null;
+          if (authCb) authCb(u ? { email: u.email, uid: u.uid } : null);
+        });
+        return 'cloud';
+      } catch (err) {
+        console.error('Falha ao iniciar Firebase, usando modo local:', err);
+        mode = 'local';
+      }
+    }
+    // modo local: "usuário" fictício sempre logado
+    setTimeout(() => { if (authCb) authCb({ email: 'local', uid: 'local', local: true }); }, 0);
+    return 'local';
+  }
+
+  const getMode = () => mode;
+
+  /* -------- autenticação -------------------------------------------------- */
+  async function login(email, senha) {
+    if (mode !== 'cloud') return { ok: true };
+    await auth.signInWithEmailAndPassword(email, senha);
+    return { ok: true };
+  }
+  async function signup(email, senha) {
+    if (mode !== 'cloud') return { ok: true };
+    await auth.createUserWithEmailAndPassword(email, senha);
+    return { ok: true };
+  }
+  async function recuperar(email) {
+    if (mode !== 'cloud') return { ok: true };
+    await auth.sendPasswordResetEmail(email);
+    return { ok: true };
+  }
+  async function logout() {
+    if (mode === 'cloud') await auth.signOut();
+  }
+
+  /* -------- helpers locais ------------------------------------------------ */
+  const lkey = col => `nutri:${col}`;
+  function lread(col) {
+    try { return JSON.parse(localStorage.getItem(lkey(col)) || '[]'); }
+    catch { return []; }
+  }
+  function lwrite(col, arr) { localStorage.setItem(lkey(col), JSON.stringify(arr)); }
+
+  function colRef(col) {
+    return db.collection('nutricionistas').doc(uid).collection(col);
+  }
+
+  /* -------- CRUD genérico ------------------------------------------------- */
+  async function list(col) {
+    if (mode === 'cloud') {
+      const snap = await colRef(col).get();
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    }
+    return lread(col);
+  }
+
+  async function get(col, id) {
+    if (mode === 'cloud') {
+      const d = await colRef(col).doc(id).get();
+      return d.exists ? { id: d.id, ...d.data() } : null;
+    }
+    return lread(col).find(x => x.id === id) || null;
+  }
+
+  /* upsert — cria (se não tiver id) ou atualiza */
+  async function save(col, obj) {
+    const agora = new Date().toISOString();
+    if (!obj.id) { obj.id = uuid(); obj.createdAt = agora; }
+    obj.updatedAt = agora;
+    if (mode === 'cloud') {
+      const { id, ...data } = obj;
+      await colRef(col).doc(id).set(data, { merge: true });
+    } else {
+      const arr = lread(col);
+      const i = arr.findIndex(x => x.id === obj.id);
+      if (i >= 0) arr[i] = { ...arr[i], ...obj }; else arr.push(obj);
+      lwrite(col, arr);
+    }
+    return obj;
+  }
+
+  async function remove(col, id) {
+    if (mode === 'cloud') await colRef(col).doc(id).delete();
+    else lwrite(col, lread(col).filter(x => x.id !== id));
+  }
+
+  return { init, getMode, login, signup, recuperar, logout, list, get, save, remove, uuid };
+})();
+
+  </script>
+  <script>
+/* ============================================================================
+   app.js — Aplicação (interface, roteamento, auto-save, cálculo, PDF, dieta)
+   Depende de: data.js (FORM_SCHEMAS, CALC_DATA, FOOD_DB, REFERENCIAS),
+               calc.js (Calc), store.js (Store)
+   ============================================================================ */
+
+const App = (() => {
+
+  /* ---------------------------------------------------------------- estado */
+  const state = {
+    user: null,
+    config: null,          // perfil da nutricionista (cabeçalho dos PDFs)
+    saveTimers: {},        // debounce por coleção:id
+  };
+
+  const COLECOES = { PAC: 'pacientes', AT: 'atendimentos', DIET: 'dietas', CFG: 'config' };
+  const REFEICOES_PADRAO = ['Café da manhã', 'Lanche da manhã', 'Almoço', 'Lanche da tarde', 'Jantar', 'Ceia'];
+
+  /* ------------------------------------------------------------- DOM utils */
+  function el(tag, attrs, ...kids) {
+    const e = document.createElement(tag);
+    if (attrs) for (const k in attrs) {
+      const v = attrs[k];
+      if (v == null || v === false) continue;
+      if (k === 'class') e.className = v;
+      else if (k === 'html') e.innerHTML = v;
+      else if (k === 'dataset') Object.assign(e.dataset, v);
+      else if (k === 'for') e.htmlFor = v;
+      else if (k.startsWith('on') && typeof v === 'function') e.addEventListener(k.slice(2), v);
+      else if (k === 'value') e.value = v;
+      else e.setAttribute(k, v);
+    }
+    for (const kid of kids.flat(Infinity)) {
+      if (kid == null || kid === false || kid === '') continue;
+      e.appendChild(typeof kid === 'object' ? kid : document.createTextNode(String(kid)));
+    }
+    return e;
+  }
+  const $ = sel => document.querySelector(sel);
+
+  function selectEl(opcoes, valor, onchange, attrs) {
+    const s = el('select', attrs);
+    for (const o of opcoes) {
+      const val = typeof o === 'object' ? o.value : o;
+      const txt = typeof o === 'object' ? o.label : o;
+      s.appendChild(el('option', { value: val }, txt));
+    }
+    if (valor != null) s.value = valor;
+    if (onchange) s.addEventListener('change', onchange);
+    return s;
+  }
+
+  /* ---------------------------------------------------------- formatadores */
+  const fmt = (n, d = 0) => (n == null || isNaN(n)) ? '—'
+    : Number(n).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
+  const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+
+  /* ---------------------------------------------------------------- toasts */
+  function toast(msg, tipo) {
+    const t = el('div', { class: 'toast' + (tipo === 'erro' ? ' erro' : '') }, msg);
+    $('#toast-root').appendChild(t);
+    setTimeout(() => t.remove(), 3200);
+  }
+
+  /* ---------------------------------------------------------------- modais */
+  function modal(conteudo) {
+    const root = $('#modal-root');
+    const bg = el('div', { class: 'modal-bg', onclick: e => { if (e.target === bg) close(); } });
+    const box = el('div', { class: 'modal' });
+    const close = () => bg.remove();
+    conteudo(box, close);
+    bg.appendChild(box);
+    root.appendChild(bg);
+    return close;
+  }
+
+  /* ----------------------------------------------------------- auto-save */
+  function debouncedSave(col, obj, ms = 800) {
+    const key = col + ':' + (obj.id || 'novo');
+    clearTimeout(state.saveTimers[key]);
+    marcarSalvando();
+    state.saveTimers[key] = setTimeout(async () => {
+      try { await Store.save(col, obj); marcarSalvo(); }
+      catch (e) { console.error(e); toast('Erro ao salvar na nuvem', 'erro'); }
+    }, ms);
+  }
+  function marcarSalvando() { const s = $('#save-state'); if (s) s.innerHTML = '<span class="dot" style="background:var(--accent)"></span> salvando…'; }
+  function marcarSalvo() { const s = $('#save-state'); if (s) s.innerHTML = '<span class="dot"></span> salvo na ' + (Store.getMode() === 'cloud' ? 'nuvem' : 'memória do navegador'); }
+
+  /* ====================================================================== */
+  /*  BOOT                                                                  */
+  /* ====================================================================== */
+  function boot() {
+    Store.init(onAuth);
+  }
+
+  async function onAuth(user) {
+    state.user = user;
+    $('#loading-screen').setAttribute('hidden', '');
+    const app = $('#app');
+    app.removeAttribute('hidden');
+    if (!user) { renderLogin(); return; }
+    // carrega perfil
+    try {
+      const cfgs = await Store.list(COLECOES.CFG);
+      state.config = cfgs[0] || { id: 'perfil' };
+    } catch { state.config = { id: 'perfil' }; }
+    window.addEventListener('hashchange', router);
+    router();
+  }
+
+  /* ====================================================================== */
+  /*  LOGIN  (apenas modo nuvem)                                            */
+  /* ====================================================================== */
+  function renderLogin() {
+    let modo = 'login';
+    const app = $('#app');
+    const draw = () => {
+      app.innerHTML = '';
+      const campoEmail = el('input', { type: 'email', placeholder: 'seu@email.com', class: '' });
+      const campoSenha = el('input', { type: 'password', placeholder: '••••••••' });
+      const erro = el('div', { class: 'ajuda', style: 'color:var(--erro);min-height:16px' });
+
+      const submit = async () => {
+        erro.textContent = '';
+        const email = campoEmail.value.trim(), senha = campoSenha.value;
+        if (!email || !senha) { erro.textContent = 'Preencha e-mail e senha.'; return; }
+        try {
+          if (modo === 'login') await Store.login(email, senha);
+          else { await Store.signup(email, senha); toast('Conta criada com sucesso.'); }
+        } catch (e) {
+          erro.textContent = traduzErroAuth(e);
+        }
+      };
+
+      const card = el('div', { class: 'auth-card' },
+        el('div', { class: 'brand' },
+          el('div', { class: 'mark' }, 'N'),
+          el('h1', null, modo === 'login' ? 'Bem-vinda de volta' : 'Criar conta'),
+          el('div', { class: 'sub' }, 'Consultório de Nutrição · atendimento remoto')),
+        el('div', { class: 'field', style: 'margin-bottom:14px' }, el('label', null, 'E-mail'), campoEmail),
+        el('div', { class: 'field' }, el('label', null, 'Senha'), campoSenha),
+        erro,
+        el('button', { class: 'btn btn-primary', style: 'width:100%;margin-top:8px', onclick: submit },
+          modo === 'login' ? 'Entrar' : 'Criar conta'),
+        modo === 'login' ? el('div', { class: 'auth-toggle' },
+          el('button', { onclick: async () => {
+            if (!campoEmail.value.trim()) { erro.textContent = 'Digite o e-mail para recuperar a senha.'; return; }
+            try { await Store.recuperar(campoEmail.value.trim()); toast('Enviamos um e-mail de recuperação.'); }
+            catch (e) { erro.textContent = traduzErroAuth(e); }
+          } }, 'Esqueci minha senha')) : null,
+        el('div', { class: 'auth-toggle' },
+          modo === 'login' ? 'Ainda não tem conta? ' : 'Já tem conta? ',
+          el('button', { onclick: () => { modo = modo === 'login' ? 'signup' : 'login'; draw(); } },
+            modo === 'login' ? 'Cadastre-se' : 'Entrar')),
+      );
+      app.appendChild(el('div', { class: 'auth-wrap' }, card));
+      campoSenha.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+    };
+    draw();
+  }
+
+  function traduzErroAuth(e) {
+    const c = (e && e.code) || '';
+    if (c.includes('invalid-credential') || c.includes('wrong-password') || c.includes('user-not-found')) return 'E-mail ou senha incorretos.';
+    if (c.includes('email-already-in-use')) return 'Este e-mail já está cadastrado.';
+    if (c.includes('weak-password')) return 'A senha precisa ter ao menos 6 caracteres.';
+    if (c.includes('invalid-email')) return 'E-mail inválido.';
+    return 'Não foi possível concluir. Tente novamente.';
+  }
+
+  /* ====================================================================== */
+  /*  SHELL  (sidebar + conteúdo)                                          */
+  /* ====================================================================== */
+  function shell(ativo, ...conteudo) {
+    const app = $('#app');
+    app.innerHTML = '';
+    const cloud = Store.getMode() === 'cloud';
+    const nav = (hash, ic, txt) => el('a', {
+      class: 'nav-item' + (ativo === hash ? ' active' : ''), href: '#' + hash
+    }, el('span', { class: 'ic' }, ic), txt);
+
+    const sidebar = el('aside', { class: 'sidebar' },
+      el('div', { class: 'logo' },
+        el('div', { class: 'mark' }, 'N'),
+        el('div', { class: 'txt' }, el('b', null, 'Consultório'), el('span', null, 'Nutrição'))),
+      nav('/', '◆', 'Início'),
+      nav('/pacientes', '❏', 'Pacientes'),
+      nav('/referencias', '✦', 'Referências'),
+      el('div', { class: 'nav-sep' }),
+      nav('/config', '⚙', 'Configurações'),
+      el('div', { class: 'foot' },
+        el('div', { class: 'mode' },
+          el('span', { class: 'dot' + (cloud ? '' : ' local') }),
+          cloud ? 'Conectada à nuvem' : 'Modo local (neste navegador)'),
+        cloud && state.user && state.user.email ? el('div', { style: 'margin-top:8px' },
+          state.user.email, ' · ',
+          el('a', { href: '#', onclick: e => { e.preventDefault(); Store.logout(); } }, 'sair')) : null),
+    );
+
+    const main = el('main', { class: 'main' }, ...conteudo);
+    app.appendChild(el('div', { class: 'shell' }, sidebar, main));
+    window.scrollTo(0, 0);
+  }
+
+  function pageHead(eyebrow, titulo, lead) {
+    return el('div', { class: 'page-head' },
+      eyebrow ? el('div', { class: 'eyebrow' }, eyebrow) : null,
+      el('h1', null, titulo),
+      lead ? el('div', { class: 'lead' }, lead) : null);
+  }
+  function crumbs(...itens) {
+    const c = el('div', { class: 'crumbs' });
+    itens.forEach((it, i) => {
+      if (i) c.appendChild(document.createTextNode('  ›  '));
+      if (it.href) c.appendChild(el('a', { href: it.href }, it.txt));
+      else c.appendChild(document.createTextNode(it.txt));
+    });
+    return c;
+  }
+
+  /* ====================================================================== */
+  /*  ROTEADOR                                                              */
+  /* ====================================================================== */
+  function router() {
+    const h = location.hash.replace(/^#/, '') || '/';
+    const [_, p1, p2] = h.split('/');
+    if (!p1) return rotaDashboard();
+    if (p1 === 'pacientes') return rotaPacientes();
+    if (p1 === 'referencias') return rotaReferencias();
+    if (p1 === 'config') return rotaConfig();
+    if (p1 === 'atendimento' && p2) return rotaAtendimento(p2);
+    if (p1 === 'dieta' && p2) return rotaDieta(p2);
+    return rotaDashboard();
+  }
+  const go = hash => { location.hash = hash; };
+
+  /* ====================================================================== */
+  /*  DASHBOARD                                                             */
+  /* ====================================================================== */
+  async function rotaDashboard() {
+    shell('/', el('div', { class: 'empty' }, el('div', { class: 'mark' }, 'N'), el('p', null, 'Carregando…')));
+    const [ats, pacs] = await Promise.all([Store.list(COLECOES.AT), Store.list(COLECOES.PAC)]);
+    ats.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+
+    const tipos = ['padrao', 'idoso', 'estetica', 'retorno2', 'retorno3'];
+    const grid = el('div', { class: 'tipo-grid' });
+    tipos.forEach((t, i) => {
+      const s = FORM_SCHEMAS[t];
+      const primeira = ['padrao', 'idoso', 'estetica'].includes(t);
+      grid.appendChild(el('button', { class: 'tipo-card', onclick: () => iniciarAtendimento(t, pacs) },
+        el('span', { class: 'tag' }, primeira ? '1ª consulta' : 'Retorno'),
+        el('div', { class: 'num' }, 'TIPO ' + (i + 1)),
+        el('h3', null, s.nome),
+        el('p', null, s.descricao),
+        el('div', { class: 'dur' }, '◷ ' + s.duracao)));
+    });
+
+    const recentes = el('div');
+    if (!ats.length) {
+      recentes.appendChild(el('div', { class: 'empty' },
+        el('div', { class: 'mark' }, '❏'),
+        el('p', null, 'Nenhum atendimento ainda. Escolha um tipo acima para começar.')));
+    } else {
+      ats.slice(0, 8).forEach(a => recentes.appendChild(linhaAtendimento(a, pacs)));
+    }
+
+    shell('/',
+      pageHead('Painel', 'Olá, ' + (state.config.nome ? state.config.nome.split(' ')[0] : 'bem-vinda'),
+        'Inicie um atendimento, retome uma consulta ou monte um plano alimentar.'),
+      el('div', { class: 'section-title' }, el('span', { class: 'idx' }, '01'), el('h2', null, 'Novo atendimento'), el('span', { class: 'rule' })),
+      grid,
+      el('div', { class: 'section-title' }, el('span', { class: 'idx' }, '02'), el('h2', null, 'Atendimentos recentes'), el('span', { class: 'rule' })),
+      recentes,
+    );
+  }
+
+  function pillTipo(tipo) {
+    const map = { padrao: ['', '1ª consulta'], idoso: ['idoso', 'Idosos'], estetica: ['estetica', 'Estética'], retorno2: ['r2', '2ª consulta'], retorno3: ['r3', '3ª consulta'] };
+    const m = map[tipo] || ['', tipo];
+    return el('span', { class: 'pill ' + m[0] }, m[1]);
+  }
+
+  function linhaAtendimento(a, pacs) {
+    const pac = pacs.find(p => p.id === a.pacienteId);
+    const nome = (a.dados && a.dados.nome) || (pac && pac.nome) || 'Sem nome';
+    const data = a.updatedAt ? new Date(a.updatedAt).toLocaleDateString('pt-BR') : '';
+    return el('div', { class: 'list-row', onclick: () => go('/atendimento/' + a.id) },
+      el('div', { class: 'avatar' }, (nome[0] || '?').toUpperCase()),
+      el('div', { class: 'grow' },
+        el('div', { class: 'nome' }, nome),
+        el('div', { class: 'meta' }, FORM_SCHEMAS[a.tipo] ? FORM_SCHEMAS[a.tipo].nome : a.tipo, data ? ' · ' + data : '')),
+      pillTipo(a.tipo));
+  }
+
+  /* ---------------------------------------------------- iniciar atendimento */
+  async function iniciarAtendimento(tipo, pacs) {
+    const primeira = ['padrao', 'idoso', 'estetica'].includes(tipo);
+    if (primeira) {
+      const pac = await Store.save(COLECOES.PAC, { nome: '', ultimoTipo: tipo });
+      const at = await Store.save(COLECOES.AT, { tipo, pacienteId: pac.id, dados: {}, calcInput: {}, calc: null });
+      go('/atendimento/' + at.id);
+    } else {
+      // retorno: escolher paciente existente
+      if (!pacs) pacs = await Store.list(COLECOES.PAC);
+      const validos = pacs.filter(p => p.nome);
+      modal((box, close) => {
+        box.appendChild(el('h3', null, 'Selecionar paciente'));
+        box.appendChild(el('div', { class: 'sub' }, 'Para qual paciente é este ' + FORM_SCHEMAS[tipo].nome.toLowerCase() + '?'));
+        if (!validos.length) {
+          box.appendChild(el('div', { class: 'muted' }, 'Você ainda não tem pacientes cadastrados. Faça uma primeira consulta antes.'));
+        } else {
+          const lista = el('div', { class: 'pick-list' });
+          validos.sort((a, b) => a.nome.localeCompare(b.nome)).forEach(p => {
+            lista.appendChild(el('div', { class: 'pick-row', onclick: async () => {
+              close();
+              const dados = { nome: p.nome, sexo: p.sexo, nascimento: p.nascimento };
+              const at = await Store.save(COLECOES.AT, { tipo, pacienteId: p.id, dados, calcInput: {}, calc: null });
+              go('/atendimento/' + at.id);
+            } },
+              el('div', { class: 'nome' }, p.nome),
+              el('div', { class: 'meta' }, [p.sexo, p.nascimento ? Calc.idade(p.nascimento) + ' anos' : null].filter(Boolean).join(' · '))));
+          });
+          box.appendChild(lista);
+        }
+        box.appendChild(el('div', { class: 'modal-actions' }, el('button', { class: 'btn btn-ghost', onclick: close }, 'Fechar')));
+      });
+    }
+  }
+
+  /* ====================================================================== */
+  /*  ATENDIMENTO  (anamnese + cálculo)                                    */
+  /* ====================================================================== */
+  async function rotaAtendimento(id) {
+    shell(null, el('div', { class: 'empty' }, el('p', null, 'Carregando atendimento…')));
+    const at = await Store.get(COLECOES.AT, id);
+    if (!at) { shell('/', pageHead(null, 'Atendimento não encontrado'), el('a', { class: 'btn btn-ghost', href: '#/' }, 'Voltar ao início')); return; }
+    at.dados = at.dados || {};
+    at.calcInput = at.calcInput || {};
+    const schema = FORM_SCHEMAS[at.tipo];
+
+    const persist = () => debouncedSave(COLECOES.AT, at);
+    const persistPaciente = async () => {
+      const d = at.dados;
+      const patch = { id: at.pacienteId, nome: d.nome || '', sexo: d.sexo, nascimento: d.nascimento, telefone: d.telefone, email: d.email, cidade_uf: d.cidade_uf, ultimoTipo: at.tipo };
+      debouncedSave(COLECOES.PAC, patch, 1000);
+    };
+
+    const formWrap = el('div');
+    schema.secoes.forEach((sec, i) => formWrap.appendChild(renderSecao(sec, i, at.dados, () => { persist(); persistPaciente(); })));
+
+    const calcWrap = renderCalc(at, schema);
+
+    shell(null,
+      crumbs({ txt: 'Início', href: '#/' }, { txt: schema.nome }),
+      pageHead(schema.nome, (at.dados.nome || 'Novo paciente'),
+        schema.descricao + ' · ' + schema.duracao),
+      el('div', { class: 'row between mb' },
+        el('div', { class: 'save-state', id: 'save-state' }, el('span', { class: 'dot' }), 'salvo automaticamente'),
+        el('div', { class: 'muted', style: 'font-size:12.5px' }, '✎ Tudo é salvo enquanto você digita')),
+      formWrap,
+      el('div', { class: 'section-title' }, el('span', { class: 'idx' }, '✦'), el('h2', null, 'Cálculo dietético'), el('span', { class: 'rule' })),
+      calcWrap,
+    );
+    marcarSalvo();
+  }
+
+  /* -------------------------------------------------- render de uma seção */
+  function renderSecao(sec, i, dados, onChange) {
+    const grid = el('div', { class: 'form-grid' });
+    sec.campos.forEach(c => grid.appendChild(renderCampo(c, dados, onChange)));
+    return el('div', null,
+      el('div', { class: 'section-title' },
+        el('span', { class: 'idx' }, String(i + 1).padStart(2, '0')),
+        el('h2', null, sec.titulo),
+        el('span', { class: 'rule' })),
+      el('div', { class: 'card card-pad' }, grid));
+  }
+
+  /* -------------------------------------------------- render de um campo */
+  function renderCampo(c, dados, onChange) {
+    const largura = c.largura || 'full';
+    const wrap = el('div', { class: 'field ' + largura });
+    const label = el('label', null, c.label);
+    if (c.obrigatorio) label.appendChild(el('span', { class: 'req' }, ' *'));
+    wrap.appendChild(label);
+
+    const val = dados[c.id];
+
+    if (c.tipo === 'textarea') {
+      const t = el('textarea', { placeholder: c.placeholder || '' });
+      if (val) t.value = val;
+      t.addEventListener('input', () => { dados[c.id] = t.value; onChange(); });
+      wrap.appendChild(t);
+    } else if (c.tipo === 'select') {
+      const s = selectEl(['', ...c.opcoes], val || '', () => { dados[c.id] = s.value; onChange(); });
+      s.querySelector('option').textContent = '— selecione —';
+      wrap.appendChild(s);
+    } else if (c.tipo === 'checkbox') {
+      const sel = Array.isArray(val) ? val : [];
+      const box = el('div', { class: 'checks' });
+      c.opcoes.forEach(op => {
+        const ativo = sel.includes(op);
+        const lab = el('label', { class: 'check' + (ativo ? ' on' : '') },
+          el('input', { type: 'checkbox' }), op);
+        lab.querySelector('input').checked = ativo;
+        lab.addEventListener('click', e => {
+          e.preventDefault();
+          const arr = Array.isArray(dados[c.id]) ? dados[c.id] : [];
+          const idx = arr.indexOf(op);
+          if (idx >= 0) arr.splice(idx, 1); else arr.push(op);
+          dados[c.id] = arr;
+          lab.classList.toggle('on');
+          onChange();
+        });
+        box.appendChild(lab);
+      });
+      wrap.appendChild(box);
+    } else {
+      const tipo = c.tipo === 'numero' ? 'number' : c.tipo === 'data' ? 'date' : 'text';
+      const inp = el('input', { type: tipo, placeholder: c.placeholder || '', step: c.tipo === 'numero' ? 'any' : null });
+      if (val != null) inp.value = val;
+      inp.addEventListener('input', () => { dados[c.id] = inp.value; onChange(); });
+      wrap.appendChild(inp);
+    }
+    if (c.ajuda) wrap.appendChild(el('div', { class: 'ajuda' }, c.ajuda));
+    return wrap;
+  }
+
+  /* ====================================================================== */
+  /*  PAINEL DE CÁLCULO                                                     */
+  /* ====================================================================== */
+  function renderCalc(at, schema) {
+    const ci = at.calcInput;
+    const d = at.dados;
+    // defaults a partir da anamnese
+    if (ci.formulaTMB == null) ci.formulaTMB = 'fao';
+    if (ci.metodoGET == null) ci.metodoGET = 'venta';
+    if (ci.sexo == null) ci.sexo = d.sexo || 'Feminino';
+    if (ci.idade == null && d.nascimento) ci.idade = Calc.idade(d.nascimento);
+    if (ci.peso == null && d.peso_atual) ci.peso = parseFloat(d.peso_atual);
+    if (ci.intensidade == null) ci.intensidade = 2;
+    if (ci.objetivo == null) ci.objetivo = 'perder';
+    if (ci.kgMes == null) ci.kgMes = 2.0;
+    if (ci.macroPreset == null) ci.macroPreset = 'Padrão (15/55/30)';
+
+    const resultBox = el('div', { class: 'mt' });
+    const onCi = () => debouncedSave(COLECOES.AT, at, 600);
+
+    // ----- escolha de fórmula TMB
+    const tmbGrid = el('div', { class: 'method-grid' });
+    Object.entries(CALC_DATA.formulasTMB).forEach(([k, f]) => {
+      const opt = el('div', { class: 'method-opt' + (ci.formulaTMB === k ? ' on' : ''), onclick: () => {
+        ci.formulaTMB = k; onCi();
+        tmbGrid.querySelectorAll('.method-opt').forEach(o => o.classList.remove('on'));
+        opt.classList.add('on');
+      } }, el('b', null, f.nome), el('span', null, f.descricao));
+      tmbGrid.appendChild(opt);
+    });
+
+    // ----- escolha de método GET
+    const metodos = {
+      venta: { nome: 'Método VENTA (do material)', desc: 'Separa horas de sono e de rotina, com efeito térmico de +10%.' },
+      fator: { nome: 'Fator de atividade', desc: 'GET = TMB × fator de atividade. Mais direto.' },
+    };
+    const getGrid = el('div', { class: 'method-grid' });
+    Object.entries(metodos).forEach(([k, m]) => {
+      const opt = el('div', { class: 'method-opt' + (ci.metodoGET === k ? ' on' : ''), onclick: () => {
+        ci.metodoGET = k; onCi();
+        getGrid.querySelectorAll('.method-opt').forEach(o => o.classList.remove('on'));
+        opt.classList.add('on');
+      } }, el('b', null, m.nome), el('span', null, m.desc));
+      getGrid.appendChild(opt);
+    });
+
+    // ----- inputs
+    const campo = (label, key, attrs, req) => {
+      const inp = el('input', Object.assign({ type: 'number', step: 'any' }, attrs));
+      if (ci[key] != null) inp.value = ci[key];
+      inp.addEventListener('input', () => { ci[key] = inp.value === '' ? null : parseFloat(inp.value); onCi(); });
+      const l = el('label', null, label);
+      if (req) l.appendChild(el('span', { class: 'req' }, ' *'));
+      return el('div', { class: 'field third' }, l, inp);
+    };
+    const sexoSel = selectEl(['Feminino', 'Masculino'], ci.sexo, e => { ci.sexo = e.target.value; onCi(); });
+    const intensSel = selectEl(
+      [{ value: 1, label: '1 · Leve' }, { value: 2, label: '2 · Moderada' }, { value: 3, label: '3 · Intensa' }],
+      String(ci.intensidade), e => { ci.intensidade = parseInt(e.target.value); onCi(); });
+    const objSel = selectEl(
+      [{ value: 'perder', label: 'Perder peso' }, { value: 'manter', label: 'Manter peso' }, { value: 'ganhar', label: 'Ganhar peso' }],
+      ci.objetivo, e => { ci.objetivo = e.target.value; onCi(); atualizarKg(); });
+    const kgSel = selectEl(CALC_DATA.venta.map(v => ({ value: v.kgMes, label: fmt(v.kgMes, 1).replace('.', ',') + ' kg/mês  (±' + v.kcal + ' kcal)' })),
+      String(ci.kgMes), e => { ci.kgMes = parseFloat(e.target.value); onCi(); });
+    const macroSel = selectEl(Object.keys(CALC_DATA.macroPresets), ci.macroPreset, e => { ci.macroPreset = e.target.value; onCi(); });
+
+    const kgField = el('div', { class: 'field third' }, el('label', null, 'Ritmo desejado'), kgSel);
+    const atualizarKg = () => { kgField.style.display = ci.objetivo === 'manter' ? 'none' : ''; };
+
+    const inputs = el('div', { class: 'form-grid' },
+      el('div', { class: 'field third' }, el('label', null, 'Sexo'), sexoSel),
+      campo('Idade (anos)', 'idade', {}, true),
+      campo('Peso (kg)', 'peso', {}, true),
+      campo('Altura (cm)', 'altura', {}, true),
+      campo('Horas de sono', 'horasSono', { placeholder: 'ex.: 8' }, true),
+      campo('Horas de atividade', 'horasAtividade', { placeholder: 'opcional' }),
+      el('div', { class: 'field third' }, el('label', null, 'Intensidade da atividade'), intensSel),
+      campo('Cintura (cm)', 'cintura', { placeholder: 'opcional' }),
+      campo('Quadril (cm)', 'quadril', { placeholder: 'opcional' }),
+      campo('Soma de 4 dobras (mm)', 'somaDobras', { placeholder: 'bíceps+tríceps+subesc.+supra' }),
+      el('div', { class: 'field third' }, el('label', null, 'Objetivo'), objSel),
+      kgField,
+      el('div', { class: 'field third' }, el('label', null, 'Distribuição de macros'), macroSel),
+    );
+
+    const btnResultado = el('button', { class: 'btn btn-accent', onclick: () => gerarResultado(at, resultBox) }, '⚡ Gerar resultado');
+    const btnRelatorio = el('button', { class: 'btn btn-primary', onclick: () => gerarRelatorioPDF(at, schema) }, '⬇ Gerar relatório da consulta (PDF)');
+    const btnDieta = el('button', { class: 'btn btn-soft', onclick: () => abrirDietaDoAtendimento(at) }, '🍽 Montar dieta');
+
+    const panel = el('div', { class: 'calc-panel' },
+      el('div', { class: 'field' }, el('label', null, 'Fórmula de Taxa Metabólica Basal (TMB)')), tmbGrid,
+      el('div', { class: 'field mt' }, el('label', null, 'Método de gasto energético (GET)')), getGrid,
+      el('div', { class: 'mt' }, inputs),
+      el('div', { class: 'sticky-actions' }, btnResultado, btnRelatorio, btnDieta),
+      resultBox,
+    );
+
+    atualizarKg();
+    // se já houver cálculo salvo, mostra
+    if (at.calc) renderResultado(at.calc, resultBox, at);
+    return panel;
+  }
+
+  /* ----------------------------------------------------- gerar resultado */
+  function gerarResultado(at, box) {
+    const ci = at.calcInput;
+    const faltando = [];
+    if (!ci.idade) faltando.push('idade');
+    if (!ci.altura) faltando.push('altura');
+    if (!ci.peso) faltando.push('peso');
+    if (!ci.horasSono) faltando.push('horas de sono');
+    if (faltando.length) { toast('Preencha: ' + faltando.join(', ') + '.', 'erro'); return; }
+
+    const entrada = {
+      sexo: ci.sexo, idade: ci.idade, peso: ci.peso, alturaCm: ci.altura,
+      horasSono: ci.horasSono, intensidade: ci.intensidade,
+      formulaTMB: ci.formulaTMB, metodoGET: ci.metodoGET,
+      objetivo: ci.objetivo, kgMes: ci.kgMes,
+      macroDist: CALC_DATA.macroPresets[ci.macroPreset],
+      cintura: ci.cintura || null, quadril: ci.quadril || null, somaDobras: ci.somaDobras || null,
+    };
+    const r = Calc.completo(entrada);
+    at.calc = r;
+    Store.save(COLECOES.AT, at).then(marcarSalvo);
+    renderResultado(r, box, at);
+    box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function renderResultado(r, box, at) {
+    box.innerHTML = '';
+    const cards = el('div', { class: 'result-grid' });
+    if (r.imc != null) cards.appendChild(el('div', { class: 'result-card' },
+      el('div', { class: 'lbl' }, 'IMC'), el('div', { class: 'val' }, fmt(r.imc, 1)), el('div', { class: 'cls' }, r.imcClasse)));
+    cards.appendChild(el('div', { class: 'result-card' },
+      el('div', { class: 'lbl' }, 'TMB'), el('div', { class: 'val' }, fmt(r.tmb, 0), el('small', null, ' kcal')), el('div', { class: 'cls' }, 'metabolismo basal')));
+    cards.appendChild(el('div', { class: 'result-card' },
+      el('div', { class: 'lbl' }, 'GET / VET'), el('div', { class: 'val' }, fmt(r.vet, 0), el('small', null, ' kcal')),
+      el('div', { class: 'cls' }, 'gasto total · fator ' + fmt(r.fator, 2))));
+    const metaTxt = r.meta.ajuste === 0 ? 'manutenção'
+      : (r.meta.ajuste < 0 ? 'déficit ' : 'superávit ') + fmt(Math.abs(r.meta.ajuste), 0) + ' kcal · ' + fmt(r.meta.kgMes, 1).replace('.', ',') + ' kg/mês';
+    cards.appendChild(el('div', { class: 'result-card alvo' },
+      el('div', { class: 'lbl' }, 'Meta calórica'), el('div', { class: 'val' }, fmt(r.meta.alvo, 0), el('small', null, ' kcal')), el('div', { class: 'cls' }, metaTxt)));
+    if (r.gordura != null) cards.appendChild(el('div', { class: 'result-card' },
+      el('div', { class: 'lbl' }, '% Gordura'), el('div', { class: 'val' }, fmt(r.gordura, 1), el('small', null, ' %')), el('div', { class: 'cls' }, r.gorduraClasse || '')));
+    if (r.cinturaClasse) cards.appendChild(el('div', { class: 'result-card' },
+      el('div', { class: 'lbl' }, 'Cintura'), el('div', { class: 'val' }, fmt(r.entrada.cintura, 0), el('small', null, ' cm')), el('div', { class: 'cls' }, r.cinturaClasse)));
+    if (r.rcq) cards.appendChild(el('div', { class: 'result-card' },
+      el('div', { class: 'lbl' }, 'Cintura/Quadril'), el('div', { class: 'val' }, fmt(r.rcq.valor, 2)), el('div', { class: 'cls' }, r.rcq.risco ? 'risco aumentado' : 'adequado')));
+    box.appendChild(cards);
+
+    // macros
+    if (r.macro) {
+      const linha = el('div', { class: 'macro-row' });
+      const mb = (nome, g, kcal, gkg) => el('div', { class: 'macro-box' },
+        el('div', { class: 'm-name' }, nome),
+        el('div', { class: 'm-g' }, fmt(g, 0) + ' g'),
+        el('div', { class: 'm-extra' }, fmt(kcal, 0) + ' kcal' + (gkg ? ' · ' + fmt(gkg, 1) + ' g/kg' : '')));
+      linha.appendChild(mb('Proteínas', r.macro.g.ptn, r.macro.kcal.ptn, r.macro.gkg && r.macro.gkg.ptn));
+      linha.appendChild(mb('Carboidratos', r.macro.g.cho, r.macro.kcal.cho, r.macro.gkg && r.macro.gkg.cho));
+      linha.appendChild(mb('Gorduras', r.macro.g.lip, r.macro.kcal.lip, r.macro.gkg && r.macro.gkg.lip));
+      box.appendChild(linha);
+    }
+
+    // passos / memória de cálculo
+    const g = r.get;
+    const passos = el('div', { class: 'steps' });
+    passos.innerHTML = '<b>Como cheguei aqui</b><br>' +
+      'TMB (' + (r.entrada.formulaTMB === 'harris' ? 'Harris & Benedict' : 'FAO/OMS') + ') = <b>' + fmt(r.tmb, 0) + ' kcal</b><br>' +
+      (r.entrada.metodoGET === 'venta'
+        ? 'Sono: ' + fmt(g.ve1, 0) + ' kcal + Rotina: ' + fmt(g.ve2, 0) + ' kcal (fator ' + fmt(r.fator, 2) + ') = ' + fmt(g.bruto, 0) + ' kcal<br>' +
+          'Efeito térmico (+10%): ' + fmt(g.termogenese, 0) + ' kcal → <b>VET ' + fmt(r.vet, 0) + ' kcal</b><br>'
+        : 'GET = TMB × fator (' + fmt(r.fator, 2) + ') = <b>' + fmt(r.vet, 0) + ' kcal</b><br>') +
+      'Ajuste do objetivo: ' + (r.meta.ajuste === 0 ? 'nenhum' : fmt(r.meta.ajuste, 0) + ' kcal') + ' → <b>Meta ' + fmt(r.meta.alvo, 0) + ' kcal</b>';
+    box.appendChild(passos);
+
+    box.appendChild(el('div', { class: 'mt-s muted', style: 'font-size:12px' },
+      'Resultado salvo no atendimento. Use “Montar dieta” para criar o plano alimentar com base nessa meta.'));
+  }
+
+  /* ====================================================================== */
+  /*  RELATÓRIO PDF DA CONSULTA                                             */
+  /* ====================================================================== */
+  function pdfHeader(doc, titulo, sub) {
+    const cfg = state.config || {};
+    doc.setFillColor(74, 60, 44); doc.rect(0, 0, 210, 26, 'F');
+    doc.setTextColor(246, 238, 223); doc.setFont('helvetica', 'bold'); doc.setFontSize(15);
+    doc.text(cfg.nome || 'Consultório de Nutrição', 14, 12);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+    const linha2 = [cfg.crn ? 'CRN ' + cfg.crn : null, cfg.especialidade, cfg.contato].filter(Boolean).join('  ·  ');
+    doc.text(linha2 || 'Nutrição · atendimento remoto', 14, 18);
+    doc.setTextColor(154, 123, 82); doc.setFontSize(8);
+    doc.text((cfg.email || '') + (cfg.instagram ? '   ' + cfg.instagram : ''), 14, 23);
+    doc.setTextColor(60, 49, 34); doc.setFont('helvetica', 'bold'); doc.setFontSize(16);
+    doc.text(titulo, 14, 38);
+    if (sub) { doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(120, 102, 78); doc.text(sub, 14, 44); }
+    return sub ? 50 : 46;
+  }
+
+  function valorLegivel(v) {
+    if (Array.isArray(v)) return v.join(', ');
+    return String(v);
+  }
+
+  function gerarRelatorioPDF(at, schema) {
+    if (!window.jspdf) { toast('Biblioteca de PDF não carregou. Verifique a internet.', 'erro'); return; }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const nome = at.dados.nome || 'Paciente';
+    let y = pdfHeader(doc, 'Relatório de consulta', schema.nome + '  ·  ' + new Date().toLocaleDateString('pt-BR'));
+
+    // identificação resumida
+    const idade = at.dados.nascimento ? Calc.idade(at.dados.nascimento) + ' anos' : (at.calcInput.idade ? at.calcInput.idade + ' anos' : '—');
+    doc.autoTable({
+      startY: y + 2,
+      theme: 'plain',
+      styles: { fontSize: 10, cellPadding: 1.5, textColor: [60, 49, 34] },
+      body: [
+        ['Paciente', nome, 'Idade', idade],
+        ['Sexo', at.dados.sexo || at.calcInput.sexo || '—', 'Contato', [at.dados.telefone, at.dados.email].filter(Boolean).join(' · ') || '—'],
+      ],
+      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 26 }, 2: { fontStyle: 'bold', cellWidth: 22 } },
+    });
+    y = doc.lastAutoTable.finalY + 4;
+
+    // seções da anamnese (apenas campos preenchidos)
+    schema.secoes.forEach(sec => {
+      const linhas = [];
+      sec.campos.forEach(c => {
+        const v = at.dados[c.id];
+        if (v == null || v === '' || (Array.isArray(v) && !v.length)) return;
+        linhas.push([c.label, valorLegivel(v)]);
+      });
+      if (!linhas.length) return;
+      if (y > 250) { doc.addPage(); y = 18; }
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(74, 60, 44);
+      doc.text(sec.titulo, 14, y);
+      doc.autoTable({
+        startY: y + 2,
+        head: [],
+        body: linhas,
+        theme: 'striped',
+        styles: { fontSize: 9.5, cellPadding: 2, textColor: [60, 49, 34], overflow: 'linebreak' },
+        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 58, textColor: [110, 92, 68] } },
+        headStyles: { fillColor: [231, 219, 201] },
+        alternateRowStyles: { fillColor: [251, 247, 240] },
+        margin: { left: 14, right: 14 },
+      });
+      y = doc.lastAutoTable.finalY + 5;
+    });
+
+    // resultados do cálculo
+    if (at.calc) {
+      const r = at.calc;
+      if (y > 235) { doc.addPage(); y = 18; }
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(74, 60, 44);
+      doc.text('Cálculo dietético', 14, y);
+      const body = [
+        ['TMB (' + (r.entrada.formulaTMB === 'harris' ? 'Harris & Benedict' : 'FAO/OMS') + ')', fmt(r.tmb, 0) + ' kcal'],
+        ['GET / VET (' + (r.entrada.metodoGET === 'venta' ? 'VENTA' : 'fator') + ')', fmt(r.vet, 0) + ' kcal'],
+        ['Meta calórica', fmt(r.meta.alvo, 0) + ' kcal  (' + (r.meta.ajuste === 0 ? 'manutenção' : (r.meta.ajuste < 0 ? 'déficit ' : 'superávit ') + fmt(Math.abs(r.meta.ajuste), 0) + ' kcal') + ')'],
+      ];
+      if (r.imc != null) body.unshift(['IMC', fmt(r.imc, 1) + '  ·  ' + r.imcClasse]);
+      if (r.macro) body.push(['Macros', 'PTN ' + fmt(r.macro.g.ptn, 0) + 'g · CHO ' + fmt(r.macro.g.cho, 0) + 'g · LIP ' + fmt(r.macro.g.lip, 0) + 'g']);
+      if (r.gordura != null) body.push(['% Gordura corporal', fmt(r.gordura, 1) + '%  ·  ' + (r.gorduraClasse || '')]);
+      doc.autoTable({
+        startY: y + 2, body, theme: 'grid',
+        styles: { fontSize: 10, cellPadding: 2.5, textColor: [60, 49, 34] },
+        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 62, textColor: [74, 60, 44] } },
+        bodyStyles: { fillColor: [255, 255, 255] },
+        margin: { left: 14, right: 14 },
+      });
+      y = doc.lastAutoTable.finalY + 4;
+    }
+
+    rodapePaginas(doc);
+    doc.save('Relatorio_' + nome.replace(/\s+/g, '_') + '.pdf');
+    toast('Relatório gerado.');
+  }
+
+  function rodapePaginas(doc) {
+    const n = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= n; i++) {
+      doc.setPage(i);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(160, 145, 122);
+      doc.text('Documento gerado pelo consultório · uso clínico', 14, 290);
+      doc.text(i + '/' + n, 196, 290, { align: 'right' });
+    }
+  }
+
+  /* ====================================================================== */
+  /*  DIETA                                                                 */
+  /* ====================================================================== */
+  async function abrirDietaDoAtendimento(at) {
+    // procura dieta já vinculada
+    const dietas = await Store.list(COLECOES.DIET);
+    let dieta = dietas.find(d => d.atendimentoId === at.id);
+    if (!dieta) {
+      const meta = at.calc ? {
+        kcal: Math.round(at.calc.meta.alvo),
+        ptn: at.calc.macro ? Math.round(at.calc.macro.g.ptn) : null,
+        cho: at.calc.macro ? Math.round(at.calc.macro.g.cho) : null,
+        lip: at.calc.macro ? Math.round(at.calc.macro.g.lip) : null,
+      } : { kcal: null, ptn: null, cho: null, lip: null };
+      dieta = await Store.save(COLECOES.DIET, {
+        atendimentoId: at.id, pacienteId: at.pacienteId,
+        nomePaciente: at.dados.nome || 'Paciente',
+        meta, refeicoes: REFEICOES_PADRAO.map(n => ({ nome: n, itens: [] })), obs: '',
+      });
+    }
+    go('/dieta/' + dieta.id);
+  }
+
+  async function rotaDieta(id) {
+    shell(null, el('div', { class: 'empty' }, el('p', null, 'Carregando plano alimentar…')));
+    const dieta = await Store.get(COLECOES.DIET, id);
+    if (!dieta) { shell('/', pageHead(null, 'Dieta não encontrada'), el('a', { class: 'btn btn-ghost', href: '#/' }, 'Voltar')); return; }
+    dieta.refeicoes = dieta.refeicoes || [];
+    dieta.meta = dieta.meta || {};
+
+    const persist = () => debouncedSave(COLECOES.DIET, dieta, 700);
+
+    const targetBar = el('div', { class: 'target-bar' });
+    const refeicoesWrap = el('div');
+
+    const recalcular = () => {
+      // totais
+      let tot = { kcal: 0, ptn: 0, cho: 0, lip: 0 };
+      dieta.refeicoes.forEach(m => {
+        let mk = 0;
+        m.itens.forEach(it => {
+          const f = (it.g || 0) / 100;
+          it.kcal = (it.per100.kcal || 0) * f;
+          it.ptn = (it.per100.ptn || 0) * f;
+          it.cho = (it.per100.cho || 0) * f;
+          it.lip = (it.per100.lip || 0) * f;
+          mk += it.kcal; tot.kcal += it.kcal; tot.ptn += it.ptn; tot.cho += it.cho; tot.lip += it.lip;
+        });
+        m._kcal = mk;
+      });
+      // barra-alvo
+      targetBar.innerHTML = '';
+      const meta = dieta.meta;
+      const item = (k, l, suf) => el('div', { class: 't-item' },
+        el('div', { class: 'k' }, k), el('div', { class: 'l' }, l + (suf || '')));
+      targetBar.appendChild(item(fmt(tot.kcal, 0) + (meta.kcal ? ' / ' + meta.kcal : ''), 'kcal'));
+      targetBar.appendChild(item(fmt(tot.ptn, 0) + (meta.ptn ? ' / ' + meta.ptn : '') + 'g', 'Proteína'));
+      targetBar.appendChild(item(fmt(tot.cho, 0) + (meta.cho ? ' / ' + meta.cho : '') + 'g', 'Carboidrato'));
+      targetBar.appendChild(item(fmt(tot.lip, 0) + (meta.lip ? ' / ' + meta.lip : '') + 'g', 'Gordura'));
+      const pct = meta.kcal ? Math.min(100, tot.kcal / meta.kcal * 100) : 0;
+      const over = meta.kcal && tot.kcal > meta.kcal * 1.03;
+      targetBar.appendChild(el('div', { class: 'bar' },
+        el('div', { class: 'progress' + (over ? ' over' : '') }, el('span', { style: 'width:' + pct + '%' })),
+        el('div', { class: 'l', style: 'margin-top:6px' }, meta.kcal ? (over ? 'acima da meta' : fmt(pct, 0) + '% da meta calórica') : 'defina a meta no cálculo')));
+      // atualiza kcal nos cabeçalhos
+      dieta.refeicoes.forEach((m, i) => { const h = refeicoesWrap.querySelector('[data-mk="' + i + '"]'); if (h) h.textContent = fmt(m._kcal, 0) + ' kcal'; });
+    };
+
+    const desenharRefeicoes = () => {
+      refeicoesWrap.innerHTML = '';
+      dieta.refeicoes.forEach((m, mi) => refeicoesWrap.appendChild(renderRefeicao(m, mi, dieta, () => { persist(); recalcular(); }, () => { dieta.refeicoes.splice(mi, 1); persist(); desenharRefeicoes(); recalcular(); })));
+      refeicoesWrap.appendChild(el('div', { class: 'mt' },
+        el('button', { class: 'btn btn-ghost btn-sm', onclick: () => { dieta.refeicoes.push({ nome: 'Nova refeição', itens: [] }); persist(); desenharRefeicoes(); recalcular(); } }, '+ Adicionar refeição')));
+    };
+
+    const obsField = el('textarea', { placeholder: 'Orientações gerais, substituições, hidratação, suplementação…' });
+    obsField.value = dieta.obs || '';
+    obsField.addEventListener('input', () => { dieta.obs = obsField.value; persist(); });
+
+    desenharRefeicoes();
+    recalcular();
+
+    shell(null,
+      crumbs({ txt: 'Início', href: '#/' },
+        dieta.atendimentoId ? { txt: 'Atendimento', href: '#/atendimento/' + dieta.atendimentoId } : { txt: 'Dieta' },
+        { txt: 'Plano alimentar' }),
+      pageHead('Plano alimentar', dieta.nomePaciente || 'Paciente',
+        'Monte as refeições por grama e medida caseira. As sugestões são editáveis e tudo é salvo automaticamente.'),
+      el('div', { class: 'row between mb' },
+        el('div', { class: 'save-state', id: 'save-state' }, el('span', { class: 'dot' }), 'salvo automaticamente'),
+        el('button', { class: 'btn btn-primary', onclick: () => exportarDietaPDF(dieta) }, '⬇ Exportar dieta (PDF)')),
+      el('div', { class: 'diet-top' }, targetBar),
+      refeicoesWrap,
+      el('div', { class: 'section-title' }, el('span', { class: 'idx' }, '✎'), el('h2', null, 'Observações'), el('span', { class: 'rule' })),
+      el('div', { class: 'card card-pad' }, el('div', { class: 'field' }, obsField)),
+    );
+    marcarSalvo();
+  }
+
+  /* --------------------------------------------------- render de refeição */
+  function renderRefeicao(m, mi, dieta, onChange, onRemove) {
+    const foods = el('div', { class: 'meal-foods' });
+
+    const desenharItens = () => {
+      foods.innerHTML = '';
+      m.itens.forEach((it, ii) => foods.appendChild(renderItem(it, () => onChange(), () => { m.itens.splice(ii, 1); onChange(); desenharItens(); })));
+      // adicionar alimento
+      const dlId = 'dl-' + mi;
+      const inp = el('input', { placeholder: 'Buscar alimento e Enter…', list: dlId });
+      const dl = el('datalist', { id: dlId });
+      FOOD_DB.forEach(f => dl.appendChild(el('option', { value: f.nome })));
+      const add = () => {
+        const nome = inp.value.trim(); if (!nome) return;
+        const f = FOOD_DB.find(x => x.nome.toLowerCase() === nome.toLowerCase());
+        if (f) m.itens.push({ nome: f.nome, per100: { kcal: f.kcal, ptn: f.ptn, cho: f.cho, lip: f.lip }, medidaLabel: f.medida, medidaG: f.g, g: f.g });
+        else m.itens.push({ nome, per100: { kcal: 0, ptn: 0, cho: 0, lip: 0 }, medidaLabel: 'porção', medidaG: 100, g: 100, custom: true });
+        inp.value = ''; onChange(); desenharItens(); inp.focus();
+      };
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); add(); } });
+      foods.appendChild(el('div', { class: 'add-food' }, dl, inp,
+        el('button', { class: 'btn btn-soft btn-sm', onclick: add }, '+ Adicionar'),
+        el('button', { class: 'btn btn-ghost btn-sm', onclick: () => abrirAlimentoManual(m, onChange, desenharItens) }, 'manual')));
+    };
+    desenharItens();
+
+    const nomeInp = el('input', { class: 'meal-name', value: m.nome });
+    nomeInp.addEventListener('input', () => { m.nome = nomeInp.value; onChange(); });
+
+    return el('div', { class: 'meal' },
+      el('div', { class: 'meal-head' },
+        nomeInp,
+        el('span', { class: 'm-kcal', dataset: { mk: String(mi) } }, fmt(m._kcal || 0, 0) + ' kcal'),
+        el('button', { class: 'btn btn-danger btn-sm', onclick: onRemove }, 'remover')),
+      foods);
+  }
+
+  /* ------------------------------------------------------- render de item */
+  function renderItem(it, onChange, onRemove) {
+    const fac = it.medidaG || 1;
+    const gInp = el('input', { type: 'number', step: 'any', value: it.g });
+    const medInp = el('input', { type: 'number', step: 'any', value: it.medidaG ? +(it.g / fac).toFixed(2) : '' });
+
+    gInp.addEventListener('input', () => {
+      it.g = gInp.value === '' ? 0 : parseFloat(gInp.value);
+      if (it.medidaG) medInp.value = +(it.g / fac).toFixed(2);
+      onChange(); atualizaKcal();
+    });
+    medInp.addEventListener('input', () => {
+      const q = medInp.value === '' ? 0 : parseFloat(medInp.value);
+      it.g = +(q * fac).toFixed(1);
+      gInp.value = it.g; onChange(); atualizaKcal();
+    });
+
+    const kcalSpan = el('div', { class: 'right', style: 'font-size:13px;color:var(--texto-m)' });
+    const atualizaKcal = () => { kcalSpan.textContent = fmt((it.per100.kcal || 0) * (it.g || 0) / 100, 0) + ' kcal'; };
+    atualizaKcal();
+
+    const nomeInp = el('input', { value: it.nome });
+    nomeInp.addEventListener('input', () => { it.nome = nomeInp.value; onChange(); });
+
+    return el('div', { class: 'food-row' },
+      nomeInp,
+      el('div', { style: 'display:flex;align-items:center;gap:4px' }, gInp, el('span', { style: 'font-size:11px;color:var(--texto-mm)' }, 'g')),
+      el('div', { style: 'display:flex;align-items:center;gap:4px' }, medInp, el('span', { style: 'font-size:11px;color:var(--texto-mm)' }, it.medidaLabel || 'med.')),
+      kcalSpan,
+      el('button', { class: 'x', onclick: onRemove }, '×'));
+  }
+
+  function abrirAlimentoManual(m, onChange, redraw) {
+    modal((box, close) => {
+      box.appendChild(el('h3', null, 'Alimento manual'));
+      box.appendChild(el('div', { class: 'sub' }, 'Informe os valores por 100 g (ou por porção, ajustando a medida).'));
+      const f = (lab, ph) => { const i = el('input', { type: lab === 'Nome' ? 'text' : 'number', step: 'any', placeholder: ph || '' }); box.appendChild(el('div', { class: 'field mt-s' }, el('label', null, lab), i)); return i; };
+      const nome = f('Nome');
+      const kcal = f('Calorias / 100g', 'kcal');
+      const ptn = f('Proteínas / 100g', 'g'); const cho = f('Carboidratos / 100g', 'g'); const lip = f('Gorduras / 100g', 'g');
+      const med = f('Nome da medida caseira', 'ex.: colher de sopa'); const medG = f('Gramas por medida', 'ex.: 15');
+      box.appendChild(el('div', { class: 'modal-actions' },
+        el('button', { class: 'btn btn-ghost', onclick: close }, 'Cancelar'),
+        el('button', { class: 'btn btn-accent', onclick: () => {
+          if (!nome.value.trim()) { toast('Dê um nome ao alimento.', 'erro'); return; }
+          const g = parseFloat(medG.value) || 100;
+          m.itens.push({ nome: nome.value.trim(), per100: { kcal: +kcal.value || 0, ptn: +ptn.value || 0, cho: +cho.value || 0, lip: +lip.value || 0 }, medidaLabel: med.value.trim() || 'porção', medidaG: g, g, custom: true });
+          close(); onChange(); redraw();
+        } }, 'Adicionar')));
+    });
+  }
+
+  /* ----------------------------------------------------- exportar dieta PDF */
+  function exportarDietaPDF(dieta) {
+    if (!window.jspdf) { toast('Biblioteca de PDF não carregou.', 'erro'); return; }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    let y = pdfHeader(doc, 'Plano alimentar', (dieta.nomePaciente || 'Paciente') + '  ·  ' + new Date().toLocaleDateString('pt-BR'));
+
+    if (dieta.meta && dieta.meta.kcal) {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(110, 92, 68);
+      const meta = dieta.meta;
+      doc.text('Meta diária: ' + meta.kcal + ' kcal' +
+        (meta.ptn ? '  ·  PTN ' + meta.ptn + 'g' : '') + (meta.cho ? '  ·  CHO ' + meta.cho + 'g' : '') + (meta.lip ? '  ·  LIP ' + meta.lip + 'g' : ''), 14, y);
+      y += 6;
+    }
+
+    let totalKcal = 0;
+    dieta.refeicoes.forEach(m => {
+      if (!m.itens.length) return;
+      let mk = 0;
+      const body = m.itens.map(it => {
+        const k = (it.per100.kcal || 0) * (it.g || 0) / 100; mk += k; totalKcal += k;
+        const medidas = it.medidaG ? +(it.g / it.medidaG).toFixed(1) + ' ' + (it.medidaLabel || '') : '—';
+        return [it.nome, fmt(it.g, 0) + ' g', medidas, fmt(k, 0) + ' kcal'];
+      });
+      if (y > 250) { doc.addPage(); y = 18; }
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(74, 60, 44);
+      doc.text(m.nome + '   ·   ' + fmt(mk, 0) + ' kcal', 14, y);
+      doc.autoTable({
+        startY: y + 2, head: [['Alimento', 'Quantidade', 'Medida caseira', 'Energia']], body,
+        theme: 'striped', styles: { fontSize: 9.5, cellPadding: 2.2, textColor: [60, 49, 34] },
+        headStyles: { fillColor: [74, 60, 44], textColor: [246, 238, 223], fontSize: 9 },
+        alternateRowStyles: { fillColor: [251, 247, 240] },
+        columnStyles: { 1: { halign: 'right', cellWidth: 26 }, 2: { cellWidth: 50 }, 3: { halign: 'right', cellWidth: 24 } },
+        margin: { left: 14, right: 14 },
+      });
+      y = doc.lastAutoTable.finalY + 5;
+    });
+
+    if (y > 260) { doc.addPage(); y = 18; }
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(74, 60, 44);
+    doc.text('Total do dia: ' + fmt(totalKcal, 0) + ' kcal', 14, y); y += 7;
+
+    if (dieta.obs) {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text('Orientações', 14, y); y += 2;
+      doc.autoTable({ startY: y, body: [[dieta.obs]], theme: 'plain', styles: { fontSize: 10, textColor: [60, 49, 34], cellPadding: 2 }, margin: { left: 14, right: 14 } });
+    }
+
+    rodapePaginas(doc);
+    doc.save('Plano_' + (dieta.nomePaciente || 'paciente').replace(/\s+/g, '_') + '.pdf');
+    toast('Plano alimentar exportado.');
+  }
+
+  /* ====================================================================== */
+  /*  PACIENTES                                                             */
+  /* ====================================================================== */
+  async function rotaPacientes() {
+    shell('/pacientes', el('div', { class: 'empty' }, el('p', null, 'Carregando…')));
+    const [pacs, ats] = await Promise.all([Store.list(COLECOES.PAC), Store.list(COLECOES.AT)]);
+    const validos = pacs.filter(p => p.nome).sort((a, b) => a.nome.localeCompare(b.nome));
+
+    const lista = el('div');
+    const desenhar = filtro => {
+      lista.innerHTML = '';
+      const f = (filtro || '').toLowerCase();
+      const arr = validos.filter(p => p.nome.toLowerCase().includes(f));
+      if (!arr.length) { lista.appendChild(el('div', { class: 'empty' }, el('p', null, 'Nenhum paciente encontrado.'))); return; }
+      arr.forEach(p => {
+        const consultas = ats.filter(a => a.pacienteId === p.id);
+        lista.appendChild(el('div', { class: 'list-row', onclick: () => abrirPaciente(p, consultas) },
+          el('div', { class: 'avatar' }, (p.nome[0] || '?').toUpperCase()),
+          el('div', { class: 'grow' },
+            el('div', { class: 'nome' }, p.nome),
+            el('div', { class: 'meta' }, [p.sexo, p.nascimento ? Calc.idade(p.nascimento) + ' anos' : null, consultas.length + ' atendimento' + (consultas.length === 1 ? '' : 's')].filter(Boolean).join(' · '))),
+          el('span', { class: 'pill' }, 'ver')));
+      });
+    };
+    const busca = el('input', { placeholder: 'Buscar paciente…', style: 'max-width:340px;padding:10px 14px;border:1px solid var(--linha-2);border-radius:100px;background:var(--surface)' });
+    busca.addEventListener('input', () => desenhar(busca.value));
+    desenhar('');
+
+    shell('/pacientes',
+      pageHead('Pacientes', 'Seus pacientes', 'Histórico de atendimentos e acesso rápido às consultas.'),
+      el('div', { class: 'mb' }, busca),
+      lista);
+  }
+
+  function abrirPaciente(p, consultas) {
+    modal((box, close) => {
+      box.appendChild(el('h3', null, p.nome));
+      box.appendChild(el('div', { class: 'sub' }, [p.sexo, p.nascimento ? Calc.idade(p.nascimento) + ' anos' : null, p.telefone, p.email].filter(Boolean).join(' · ')));
+      if (!consultas.length) box.appendChild(el('div', { class: 'muted' }, 'Sem atendimentos.'));
+      else {
+        const lista = el('div', { class: 'pick-list' });
+        consultas.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || '')).forEach(a => {
+          lista.appendChild(el('div', { class: 'pick-row', onclick: () => { close(); go('/atendimento/' + a.id); } },
+            el('div', { class: 'nome' }, FORM_SCHEMAS[a.tipo] ? FORM_SCHEMAS[a.tipo].nome : a.tipo),
+            el('div', { class: 'meta' }, a.updatedAt ? new Date(a.updatedAt).toLocaleDateString('pt-BR') : '')));
+        });
+        box.appendChild(lista);
+      }
+      box.appendChild(el('div', { class: 'modal-actions' },
+        el('button', { class: 'btn btn-danger', onclick: async () => {
+          if (!confirm('Excluir este paciente e seus atendimentos? Esta ação não pode ser desfeita.')) return;
+          for (const a of consultas) await Store.remove(COLECOES.AT, a.id);
+          await Store.remove(COLECOES.PAC, p.id);
+          close(); toast('Paciente excluído.'); rotaPacientes();
+        } }, 'Excluir'),
+        el('button', { class: 'btn btn-ghost', onclick: close }, 'Fechar')));
+    });
+  }
+
+  /* ====================================================================== */
+  /*  REFERÊNCIAS                                                           */
+  /* ====================================================================== */
+  function rotaReferencias() {
+    const tabela = (titulo, head, linhas) => el('div', { class: 'card card-pad' },
+      el('h3', { style: 'margin-bottom:12px' }, titulo),
+      (() => {
+        const t = el('table', { class: 'tbl' });
+        t.appendChild(el('thead', null, el('tr', null, ...head.map(h => el('th', null, h)))));
+        const tb = el('tbody');
+        linhas.forEach(l => tb.appendChild(el('tr', null, ...l.map(c => el('td', null, c)))));
+        t.appendChild(tb);
+        return t;
+      })());
+
+    shell('/referencias',
+      pageHead('Apoio clínico', 'Referências rápidas',
+        'Sinais de carências nutricionais e ativos para nutrição estética. Material de consulta durante o atendimento.'),
+      el('div', { class: 'ref-grid' },
+        tabela('Sinais clínicos de carências', ['Local', 'Sinal', 'Possível carência'], REFERENCIAS.carencias),
+        tabela('Ativos para nutrição estética', ['Ativo', 'Origem', 'Ação'], REFERENCIAS.ativosEsteticos)),
+    );
+  }
+
+  /* ====================================================================== */
+  /*  CONFIGURAÇÕES                                                         */
+  /* ====================================================================== */
+  function rotaConfig() {
+    const cfg = state.config || { id: 'perfil' };
+    const campo = (lab, key, ph) => {
+      const i = el('input', { placeholder: ph || '', value: cfg[key] || '' });
+      i.addEventListener('input', () => { cfg[key] = i.value; debouncedSave(COLECOES.CFG, cfg, 600); });
+      return el('div', { class: 'field half' }, el('label', null, lab), i);
+    };
+    shell('/config',
+      pageHead('Configurações', 'Seu perfil profissional',
+        'Esses dados aparecem no cabeçalho dos relatórios e planos em PDF que você entrega ao paciente.'),
+      el('div', { class: 'row between mb' }, el('div', { class: 'save-state', id: 'save-state' }, el('span', { class: 'dot' }), 'salvo automaticamente'), ''),
+      el('div', { class: 'card card-pad' },
+        el('div', { class: 'form-grid' },
+          campo('Nome completo', 'nome', 'ex.: Dra. Ana Nutricionista'),
+          campo('CRN', 'crn', 'ex.: 12345/P'),
+          campo('Especialidade / título', 'especialidade', 'ex.: Nutrição clínica e estética'),
+          campo('Telefone / WhatsApp', 'contato', ''),
+          campo('E-mail profissional', 'email', ''),
+          campo('Instagram / site', 'instagram', '@seuperfil'))),
+      el('div', { class: 'card card-pad mt' },
+        el('h3', { style: 'margin-bottom:8px' }, 'Sobre o armazenamento'),
+        el('p', { class: 'muted', style: 'font-size:13.5px' },
+          Store.getMode() === 'cloud'
+            ? 'Seus dados estão sendo salvos na nuvem (Firebase) e sincronizam entre dispositivos.'
+            : 'No momento os dados ficam salvos apenas neste navegador. Para sincronizar na nuvem, preencha o arquivo js/firebase-config.js (veja o README).')),
+    );
+    marcarSalvo();
+  }
+
+  /* ---------------------------------------------------------------- início */
+  return { boot, _router: router };
+})();
+
+document.addEventListener('DOMContentLoaded', App.boot);
+
+  </script>
+</body>
+</html>
