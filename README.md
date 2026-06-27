@@ -4,13 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Consultório · Nutrição</title>
-  <meta name="description" content="Sistema de atendimento nutricional remoto: anamnese, cálculo dietético e plano alimentar." />
-
-  <!-- Tipografia -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
-
   <style>
 /* ============================================================================
    styles.css — Identidade visual
@@ -338,43 +334,24 @@ button { cursor: pointer; }
   </style>
 </head>
 <body>
-  <div id="loading-screen" class="loading-screen">
-    <div class="loading-mark">N</div>
-  </div>
-
+  <div id="loading-screen" class="loading-screen"><div class="loading-mark">N</div></div>
   <div id="app" hidden></div>
   <div id="modal-root"></div>
   <div id="toast-root"></div>
-
-  <!-- Firebase (compat) — só é usado quando você preenche o FIREBASE_CONFIG abaixo -->
-  
-const firebaseConfig = {
-  apiKey: "AIzaSyBjzrYvpNRJGqcoaF6kkO7W2hBNnTA73uE",
-  authDomain: "nutri-ff2f5.firebaseapp.com",
-  projectId: "nutri-ff2f5",
-  storageBucket: "nutri-ff2f5.firebasestorage.app",
-  messagingSenderId: "1077106437910",
-  appId: "1:1077106437910:web:d90787fe6af95d41c4ea37"
-};
-
-  <!-- Geração de PDF -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-
-  <!-- ===================== APLICAÇÃO (tudo embutido) ===================== -->
   <script>
-/* ---- firebase-config (edite aqui para ligar a nuvem) ---- */
 /* ============================================================================
-   firebase-config.js
+   firebase-config.js  —  Projeto: nutri-ff2f5
    ----------------------------------------------------------------------------
-   Cole aqui as credenciais do SEU projeto Firebase (plano gratuito "Spark").
-   Passo a passo completo no README.md.
-
-   Enquanto estiver com os valores "COLE_AQUI...", o site funciona em modo
-   LOCAL (salva só neste navegador). Assim que você preencher corretamente,
-   ele passa a salvar tudo na nuvem e a exigir login.
+   IMPORTANTE: a variável PRECISA se chamar exatamente window.FIREBASE_CONFIG.
+   A variavel deve ter exatamente este nome (window.FIREBASE_CONFIG).
    ============================================================================ */
-const firebaseConfig = {
+
+window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBjzrYvpNRJGqcoaF6kkO7W2hBNnTA73uE",
   authDomain: "nutri-ff2f5.firebaseapp.com",
   projectId: "nutri-ff2f5",
