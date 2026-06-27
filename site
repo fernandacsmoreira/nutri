@@ -16,7 +16,23 @@
   // =============================================
   const firebaseConfig = {
     apiKey: "SUA_API_KEY",
-    authDomain: "SEU_PROJETO.firebaseapp.com",
+    authDomain: "// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyBjzrYvpNRJGqcoaF6kkO7W2hBNnTA73uE",
+  authDomain: "nutri-ff2f5.firebaseapp.com",
+  projectId: "nutri-ff2f5",
+  storageBucket: "nutri-ff2f5.firebasestorage.app",
+  messagingSenderId: "1077106437910",
+  appId: "1:1077106437910:web:d90787fe6af95d41c4ea37"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);",
     projectId: "SEU_PROJETO_ID",
     storageBucket: "SEU_PROJETO.appspot.com",
     messagingSenderId: "SEU_SENDER_ID",
