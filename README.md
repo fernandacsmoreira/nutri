@@ -346,7 +346,9 @@ button { cursor: pointer; }
   <div id="modal-root"></div>
   <div id="toast-root"></div>
 
-  <!-- Firebase (compat) — só é usado quando você preenche o FIREBASE_CONFIG abaixo -->const firebaseConfig = {
+  <!-- Firebase (compat) — só é usado quando você preenche o FIREBASE_CONFIG abaixo -->
+  
+const firebaseConfig = {
   apiKey: "AIzaSyBjzrYvpNRJGqcoaF6kkO7W2hBNnTA73uE",
   authDomain: "nutri-ff2f5.firebaseapp.com",
   projectId: "nutri-ff2f5",
