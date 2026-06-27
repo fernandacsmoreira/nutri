@@ -346,10 +346,14 @@ button { cursor: pointer; }
   <div id="modal-root"></div>
   <div id="toast-root"></div>
 
-  <!-- Firebase (compat) — só é usado quando você preenche o FIREBASE_CONFIG abaixo -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <!-- Firebase (compat) — só é usado quando você preenche o FIREBASE_CONFIG abaixo -->const firebaseConfig = {
+  apiKey: "AIzaSyBjzrYvpNRJGqcoaF6kkO7W2hBNnTA73uE",
+  authDomain: "nutri-ff2f5.firebaseapp.com",
+  projectId: "nutri-ff2f5",
+  storageBucket: "nutri-ff2f5.firebasestorage.app",
+  messagingSenderId: "1077106437910",
+  appId: "1:1077106437910:web:d90787fe6af95d41c4ea37"
+};
 
   <!-- Geração de PDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
