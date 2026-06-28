@@ -403,6 +403,73 @@ button { cursor: pointer; }
   .row-actions { flex-direction:column; align-items:stretch; }
 }
 
+/* ============================================================
+   Adições v3: Finalizar, lista compacta de pacientes,
+   abas e histórico no modal do paciente
+   ============================================================ */
+
+/* botão finalizar + barra */
+.finalizar-bar {
+  display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;
+  margin-top:18px; padding-top:16px; border-top:1px dashed var(--linha-2);
+}
+.btn-finalizar {
+  background:#3f6b4f; color:#fff; border:none; border-radius:100px;
+  padding:11px 22px; font-family:inherit; font-size:14.5px; font-weight:500; cursor:pointer;
+  box-shadow:0 4px 14px rgba(63,107,79,.25); transition:all .15s ease;
+}
+.btn-finalizar:hover { background:#345c43; transform:translateY(-1px); }
+
+/* lista compacta de pacientes (letras pequenas) */
+.pac-list { display:flex; flex-direction:column; }
+.pac-row {
+  display:flex; align-items:center; gap:10px; padding:9px 12px; cursor:pointer;
+  border-bottom:1px solid var(--linha); transition:background .12s ease;
+}
+.pac-row:hover { background:var(--surface-2); }
+.pac-row .grow { display:flex; align-items:baseline; gap:10px; flex:1; min-width:0; flex-wrap:wrap; }
+.pac-row .nome { font-size:14px; font-weight:500; color:var(--marrom); }
+.pac-row .meta { font-size:11.5px; color:var(--texto-mm); }
+.pac-row .row-actions { gap:6px; }
+.pac-row .icon-btn { padding:5px 9px; font-size:13px; }
+
+/* modal do paciente */
+.paciente-modal { max-width:560px; }
+.tabs { display:flex; gap:6px; border-bottom:1px solid var(--linha-2); margin:6px 0 14px; }
+.tabs .tab {
+  border:none; background:none; font-family:inherit; font-size:13.5px; color:var(--texto-m);
+  padding:8px 12px; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px;
+}
+.tabs .tab.on { color:var(--marrom); border-bottom-color:var(--accent); font-weight:500; }
+
+.info-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px 18px; }
+.info-row { display:flex; flex-direction:column; gap:1px; padding:5px 0; border-bottom:1px solid var(--linha); }
+.info-row .k { font-size:11px; color:var(--texto-mm); letter-spacing:.03em; text-transform:uppercase; }
+.info-row .v { font-size:14px; color:var(--texto); }
+
+/* resumo da última dieta */
+.diet-resumo { background:var(--surface-2); border:1px solid var(--linha-2); border-radius:12px; padding:12px 14px; margin-bottom:14px; }
+.dr-top { display:flex; justify-content:space-between; font-size:13px; color:var(--texto-m); margin-bottom:8px; }
+.dr-macros { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.dr-m { text-align:center; background:var(--surface); border-radius:9px; padding:8px 4px; }
+.dr-m b { display:block; font-size:15px; color:var(--marrom); font-family:var(--serif); }
+.dr-m span { font-size:10.5px; color:var(--texto-mm); letter-spacing:.04em; }
+
+/* cards de histórico */
+.hist-card { border:1px solid var(--linha-2); border-radius:12px; padding:11px 13px; margin-bottom:9px; cursor:pointer; transition:all .12s ease; }
+.hist-card:hover { border-color:var(--accent); background:var(--surface-2); }
+.hc-head { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:7px; }
+.hc-tipo { font-size:13.5px; font-weight:500; color:var(--marrom); }
+.hc-data { font-size:12px; color:var(--texto-mm); }
+.hc-resumo { display:flex; flex-wrap:wrap; gap:5px; }
+.hc-resumo .tag { font-size:11.5px; background:var(--bege); color:var(--marrom); padding:3px 8px; border-radius:100px; }
+.hc-link { display:inline-block; margin-top:8px; font-size:11.5px; color:var(--accent); }
+
+@media (max-width:520px){
+  .info-grid { grid-template-columns:1fr; }
+  .dr-macros { grid-template-columns:repeat(2,1fr); }
+}
+
   </style>
 </head>
 <body>
@@ -1653,7 +1720,8 @@ const App = (() => {
     const persist = () => debouncedSave(COLECOES.AT, at);
     const persistPaciente = async () => {
       const d = at.dados;
-      const patch = { id: at.pacienteId, nome: d.nome || '', sexo: d.sexo, nascimento: d.nascimento, telefone: d.telefone, email: d.email, cidade_uf: d.cidade_uf, ultimoTipo: at.tipo };
+      const peso = d.peso_atual || (at.calcInput && at.calcInput.peso) || null;
+      const patch = { id: at.pacienteId, nome: d.nome || '', sexo: d.sexo, nascimento: d.nascimento, telefone: d.telefone, email: d.email, cidade_uf: d.cidade_uf, peso: peso, ultimoTipo: at.tipo };
       debouncedSave(COLECOES.PAC, patch, 1000);
     };
 
@@ -1813,6 +1881,7 @@ const App = (() => {
     const btnResultado = el('button', { class: 'btn btn-accent', onclick: () => gerarResultado(at, resultBox) }, '⚡ Gerar resultado');
     const btnRelatorio = el('button', { class: 'btn btn-primary', onclick: () => gerarRelatorioPDF(at, schema) }, '⬇ Gerar relatório da consulta (PDF)');
     const btnDieta = el('button', { class: 'btn btn-soft', onclick: () => abrirDietaDoAtendimento(at) }, '🍽 Montar dieta');
+    const btnFinalizar = el('button', { class: 'btn btn-finalizar', onclick: () => finalizarAtendimento(at, schema) }, '✓ Finalizar atendimento');
 
     const panel = el('div', { class: 'calc-panel' },
       el('div', { class: 'field' }, el('label', null, 'Estilo de cálculo'),
@@ -1821,6 +1890,9 @@ const App = (() => {
       el('div', { class: 'mt' }, inputs),
       el('div', { class: 'sticky-actions' }, btnResultado, btnRelatorio, btnDieta),
       resultBox,
+      el('div', { class: 'finalizar-bar' },
+        el('div', { class: 'muted', style: 'font-size:12.5px' }, 'Concluiu a consulta? Finalize para salvar este paciente na aba Pacientes.'),
+        btnFinalizar),
     );
 
     atualizarKg();
@@ -1852,6 +1924,28 @@ const App = (() => {
     Store.save(COLECOES.AT, at).then(marcarSalvo);
     renderResultado(r, box, at);
     box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  /* ----------------------------------------------- finalizar atendimento */
+  async function finalizarAtendimento(at, schema) {
+    const d = at.dados;
+    if (!d.nome || !d.nome.trim()) {
+      toast('Preencha o nome do paciente antes de finalizar.', 'erro');
+      return;
+    }
+    // garante peso salvo a partir da anamnese ou do cálculo
+    const peso = d.peso_atual || (at.calcInput && at.calcInput.peso) || null;
+    at.finalizado = true;
+    at.finalizadoEm = new Date().toISOString();
+    // salva atendimento e atualiza o paciente imediatamente (sem debounce)
+    await Store.save(COLECOES.AT, at);
+    await Store.save(COLECOES.PAC, {
+      id: at.pacienteId, nome: d.nome.trim(), sexo: d.sexo, nascimento: d.nascimento,
+      telefone: d.telefone, email: d.email, cidade_uf: d.cidade_uf, peso: peso, ultimoTipo: at.tipo,
+    });
+    marcarSalvo();
+    toast('Atendimento finalizado e salvo em Pacientes.');
+    go('/pacientes');
   }
 
   function renderResultado(r, box, at) {
@@ -2569,10 +2663,10 @@ const App = (() => {
   /* ====================================================================== */
   async function rotaPacientes() {
     shell('/pacientes', el('div', { class: 'empty' }, el('p', null, 'Carregando…')));
-    const [pacs, ats] = await Promise.all([Store.list(COLECOES.PAC), Store.list(COLECOES.AT)]);
+    const [pacs, ats, dietas] = await Promise.all([Store.list(COLECOES.PAC), Store.list(COLECOES.AT), Store.list(COLECOES.DIET)]);
     const validos = pacs.filter(p => p.nome).sort((a, b) => a.nome.localeCompare(b.nome));
 
-    const lista = el('div');
+    const lista = el('div', { class: 'pac-list' });
     const desenhar = filtro => {
       lista.innerHTML = '';
       const f = (filtro || '').toLowerCase();
@@ -2580,18 +2674,20 @@ const App = (() => {
       if (!arr.length) { lista.appendChild(el('div', { class: 'empty' }, el('p', null, 'Nenhum paciente encontrado.'))); return; }
       arr.forEach(p => {
         const consultas = ats.filter(a => a.pacienteId === p.id);
+        const dietasPac = dietas.filter(d => d.pacienteId === p.id);
         const acoes = el('div', { class: 'row-actions' });
         if (p.telefone) {
           acoes.appendChild(el('a', { class: 'icon-btn wpp', href: waLink(p.telefone), target: '_blank', title: 'Enviar WhatsApp',
-            onclick: e => e.stopPropagation() }, '🟢 WhatsApp'));
+            onclick: e => e.stopPropagation() }, '🟢'));
         }
         acoes.appendChild(el('button', { class: 'icon-btn', title: 'Exportar dados do paciente',
-          onclick: e => { e.stopPropagation(); exportarPacientePDF(p, consultas); } }, '⬇ Exportar'));
-        lista.appendChild(el('div', { class: 'list-row', onclick: () => abrirPaciente(p, consultas) },
-          el('div', { class: 'avatar' }, (p.nome[0] || '?').toUpperCase()),
+          onclick: e => { e.stopPropagation(); exportarPacientePDF(p, consultas); } }, '⬇'));
+        const sub = [p.sexo, p.nascimento ? Calc.idade(p.nascimento) + 'a' : null, p.peso ? p.peso + ' kg' : null,
+          consultas.length + ' atend.'].filter(Boolean).join(' · ');
+        lista.appendChild(el('div', { class: 'pac-row', onclick: () => abrirPaciente(p, consultas, dietasPac) },
           el('div', { class: 'grow' },
-            el('div', { class: 'nome' }, p.nome),
-            el('div', { class: 'meta' }, [p.sexo, p.nascimento ? Calc.idade(p.nascimento) + ' anos' : null, p.telefone || null, consultas.length + ' atendimento' + (consultas.length === 1 ? '' : 's')].filter(Boolean).join(' · '))),
+            el('span', { class: 'nome' }, p.nome),
+            el('span', { class: 'meta' }, sub)),
           acoes));
       });
     };
@@ -2600,32 +2696,87 @@ const App = (() => {
     desenhar('');
 
     shell('/pacientes',
-      pageHead('Pacientes', 'Seus pacientes', 'Histórico de atendimentos e acesso rápido às consultas.'),
+      pageHead('Pacientes', 'Seus pacientes', 'Clique em um nome para ver as informações pessoais e o histórico de consultas.'),
       el('div', { class: 'mb' }, busca),
       lista);
   }
 
-  function abrirPaciente(p, consultas) {
+  function abrirPaciente(p, consultas, dietasPac) {
+    dietasPac = dietasPac || [];
+    consultas = (consultas || []).slice().sort((a, b) => (b.createdAt || b.updatedAt || '').localeCompare(a.createdAt || a.updatedAt || ''));
     modal((box, close) => {
+      box.classList.add('paciente-modal');
       box.appendChild(el('h3', null, p.nome));
-      box.appendChild(el('div', { class: 'sub' }, [p.sexo, p.nascimento ? Calc.idade(p.nascimento) + ' anos' : null, p.telefone, p.email].filter(Boolean).join(' · ')));
+      box.appendChild(el('div', { class: 'sub' }, [p.sexo, p.nascimento ? Calc.idade(p.nascimento) + ' anos' : null, p.peso ? p.peso + ' kg' : null].filter(Boolean).join(' · ')));
 
       // ações rápidas
-      const quick = el('div', { class: 'row', style: 'gap:8px;flex-wrap:wrap;margin:4px 0 10px' });
+      const quick = el('div', { class: 'row', style: 'gap:8px;flex-wrap:wrap;margin:6px 0 12px' });
       if (p.telefone) quick.appendChild(el('a', { class: 'btn btn-soft btn-sm', href: waLink(p.telefone), target: '_blank' }, '🟢 WhatsApp'));
       quick.appendChild(el('button', { class: 'btn btn-soft btn-sm', onclick: () => exportarPacientePDF(p, consultas) }, '⬇ Exportar dados (PDF)'));
       box.appendChild(quick);
 
-      if (!consultas.length) box.appendChild(el('div', { class: 'muted' }, 'Sem atendimentos.'));
-      else {
-        const lista = el('div', { class: 'pick-list' });
-        consultas.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || '')).forEach(a => {
-          lista.appendChild(el('div', { class: 'pick-row', onclick: () => { close(); go('/atendimento/' + a.id); } },
-            el('div', { class: 'nome' }, FORM_SCHEMAS[a.tipo] ? FORM_SCHEMAS[a.tipo].nome : a.tipo),
-            el('div', { class: 'meta' }, a.updatedAt ? new Date(a.updatedAt).toLocaleDateString('pt-BR') : '')));
-        });
-        box.appendChild(lista);
+      // ----- abas
+      const tabPessoal = el('button', { class: 'tab on' }, 'Informações pessoais');
+      const tabHist = el('button', { class: 'tab' }, 'Histórico');
+      const painelPessoal = el('div');
+      const painelHist = el('div', { style: 'display:none' });
+      const setTab = qual => {
+        const p1 = qual === 'pessoal';
+        tabPessoal.classList.toggle('on', p1); tabHist.classList.toggle('on', !p1);
+        painelPessoal.style.display = p1 ? '' : 'none'; painelHist.style.display = p1 ? 'none' : '';
+      };
+      tabPessoal.addEventListener('click', () => setTab('pessoal'));
+      tabHist.addEventListener('click', () => setTab('hist'));
+      box.appendChild(el('div', { class: 'tabs' }, tabPessoal, tabHist));
+
+      // ----- Informações pessoais
+      const info = (lab, val) => el('div', { class: 'info-row' }, el('span', { class: 'k' }, lab), el('span', { class: 'v' }, val || '—'));
+      painelPessoal.appendChild(el('div', { class: 'info-grid' },
+        info('Nome', p.nome),
+        info('Sexo', p.sexo),
+        info('Idade', p.nascimento ? Calc.idade(p.nascimento) + ' anos' : null),
+        info('Peso', p.peso ? p.peso + ' kg' : null),
+        info('Telefone', p.telefone),
+        info('E-mail', p.email),
+        info('Cidade/UF', p.cidade_uf),
+        info('Última consulta', consultas[0] ? (FORM_SCHEMAS[consultas[0].tipo] ? FORM_SCHEMAS[consultas[0].tipo].nome : consultas[0].tipo) : null)));
+      box.appendChild(painelPessoal);
+
+      // ----- Histórico
+      // macros/calorias da última dieta com data
+      const ultDieta = dietasPac.slice().sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))[0];
+      if (ultDieta && ultDieta.meta && ultDieta.meta.kcal) {
+        const m = ultDieta.meta;
+        const dataD = ultDieta.createdAt ? new Date(ultDieta.createdAt).toLocaleDateString('pt-BR') : '';
+        painelHist.appendChild(el('div', { class: 'diet-resumo' },
+          el('div', { class: 'dr-top' }, el('b', null, 'Última dieta'), el('span', null, dataD)),
+          el('div', { class: 'dr-macros' },
+            el('div', { class: 'dr-m' }, el('b', null, m.kcal + ''), el('span', null, 'kcal')),
+            el('div', { class: 'dr-m' }, el('b', null, (m.ptn || '—') + 'g'), el('span', null, 'PTN')),
+            el('div', { class: 'dr-m' }, el('b', null, (m.cho || '—') + 'g'), el('span', null, 'CHO')),
+            el('div', { class: 'dr-m' }, el('b', null, (m.lip || '—') + 'g'), el('span', null, 'LIP')))));
+      } else {
+        painelHist.appendChild(el('div', { class: 'muted', style: 'margin-bottom:10px' }, 'Nenhuma dieta montada ainda.'));
       }
+
+      // resumo de cada consulta
+      if (!consultas.length) painelHist.appendChild(el('div', { class: 'muted' }, 'Sem atendimentos registrados.'));
+      consultas.forEach(a => {
+        const tipoNome = FORM_SCHEMAS[a.tipo] ? FORM_SCHEMAS[a.tipo].nome : a.tipo;
+        const data = a.createdAt || a.updatedAt ? new Date(a.createdAt || a.updatedAt).toLocaleDateString('pt-BR') : '';
+        const resumo = resumoConsulta(a);
+        const card = el('div', { class: 'hist-card', onclick: () => { close(); go('/atendimento/' + a.id); } },
+          el('div', { class: 'hc-head' },
+            el('span', { class: 'hc-tipo' }, tipoNome + (a.finalizado ? ' ✓' : '')),
+            el('span', { class: 'hc-data' }, data)),
+          resumo.length
+            ? el('div', { class: 'hc-resumo' }, ...resumo.map(([k, v]) => el('span', { class: 'tag' }, k + ': ' + v)))
+            : el('div', { class: 'muted', style: 'font-size:12.5px' }, 'Sem dados de cálculo nesta consulta.'),
+          el('span', { class: 'hc-link' }, 'abrir consulta →'));
+        painelHist.appendChild(card);
+      });
+      box.appendChild(painelHist);
+
       box.appendChild(el('div', { class: 'modal-actions' },
         el('button', { class: 'btn btn-danger', onclick: async () => {
           if (!confirm('Excluir este paciente e seus atendimentos? Esta ação não pode ser desfeita.')) return;
@@ -2635,6 +2786,21 @@ const App = (() => {
         } }, 'Excluir'),
         el('button', { class: 'btn btn-ghost', onclick: close }, 'Fechar')));
     });
+  }
+
+  /* resumo das informações coletadas em uma consulta (peso, IMC, meta, etc.) */
+  function resumoConsulta(at) {
+    const out = [];
+    const d = at.dados || {}; const ci = at.calcInput || {}; const r = at.calc;
+    const peso = d.peso_atual || ci.peso;
+    if (peso) out.push(['Peso', peso + ' kg']);
+    if (ci.altura) out.push(['Altura', ci.altura + ' cm']);
+    if (r && r.imc != null) out.push(['IMC', fmt(r.imc, 1) + (r.imcClasse ? ' (' + r.imcClasse + ')' : '')]);
+    if (r && r.meta) out.push(['Meta', fmt(r.meta.alvo, 0) + ' kcal']);
+    if (r && r.macro) out.push(['Macros', 'P' + fmt(r.macro.g.ptn, 0) + ' C' + fmt(r.macro.g.cho, 0) + ' G' + fmt(r.macro.g.lip, 0)]);
+    if (d.objetivo_consulta) out.push(['Objetivo', String(d.objetivo_consulta).slice(0, 40)]);
+    if (r && r.gordura != null) out.push(['Gordura', fmt(r.gordura, 1) + '%']);
+    return out;
   }
 
   /* gera link do WhatsApp (wa.me) a partir de um telefone com DDD */
@@ -2657,8 +2823,9 @@ const App = (() => {
       styles: { fontSize: 10, cellPadding: 1.6, textColor: [60, 49, 34] },
       body: [
         ['Nome', p.nome || '—', 'Idade', p.nascimento ? Calc.idade(p.nascimento) + ' anos' : '—'],
-        ['Sexo', p.sexo || '—', 'Telefone', p.telefone || '—'],
-        ['E-mail', p.email || '—', 'Cidade/UF', p.cidade_uf || '—'],
+        ['Sexo', p.sexo || '—', 'Peso', p.peso ? p.peso + ' kg' : '—'],
+        ['Telefone', p.telefone || '—', 'E-mail', p.email || '—'],
+        ['Cidade/UF', p.cidade_uf || '—', '', ''],
       ],
       columnStyles: { 0: { fontStyle: 'bold', cellWidth: 24 }, 2: { fontStyle: 'bold', cellWidth: 24 } },
     });
