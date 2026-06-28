@@ -1337,6 +1337,17 @@ const Store = (() => {
     return lread(col).find(x => x.id === id) || null;
   }
 
+  /* Firestore rejeita valores undefined — remove recursivamente antes de gravar */
+  function stripUndefined(v) {
+    if (Array.isArray(v)) return v.map(stripUndefined);
+    if (v && typeof v === 'object' && !(v instanceof Date)) {
+      const o = {};
+      for (const k in v) { if (v[k] !== undefined) o[k] = stripUndefined(v[k]); }
+      return o;
+    }
+    return v;
+  }
+
   /* upsert — cria (se não tiver id) ou atualiza */
   async function save(col, obj) {
     const agora = new Date().toISOString();
@@ -1344,7 +1355,7 @@ const Store = (() => {
     obj.updatedAt = agora;
     if (mode === 'cloud') {
       const { id, ...data } = obj;
-      await colRef(col).doc(id).set(data, { merge: true });
+      await colRef(col).doc(id).set(stripUndefined(data), { merge: true });
     } else {
       const arr = lread(col);
       const i = arr.findIndex(x => x.id === obj.id);
@@ -1933,19 +1944,23 @@ const App = (() => {
       toast('Preencha o nome do paciente antes de finalizar.', 'erro');
       return;
     }
-    // garante peso salvo a partir da anamnese ou do cálculo
     const peso = d.peso_atual || (at.calcInput && at.calcInput.peso) || null;
     at.finalizado = true;
     at.finalizadoEm = new Date().toISOString();
-    // salva atendimento e atualiza o paciente imediatamente (sem debounce)
-    await Store.save(COLECOES.AT, at);
-    await Store.save(COLECOES.PAC, {
-      id: at.pacienteId, nome: d.nome.trim(), sexo: d.sexo, nascimento: d.nascimento,
-      telefone: d.telefone, email: d.email, cidade_uf: d.cidade_uf, peso: peso, ultimoTipo: at.tipo,
-    });
-    marcarSalvo();
-    toast('Atendimento finalizado e salvo em Pacientes.');
-    go('/pacientes');
+    try {
+      await Store.save(COLECOES.AT, at);
+      await Store.save(COLECOES.PAC, {
+        id: at.pacienteId, nome: d.nome.trim(), sexo: d.sexo || null, nascimento: d.nascimento || null,
+        telefone: d.telefone || null, email: d.email || null, cidade_uf: d.cidade_uf || null,
+        peso: peso, ultimoTipo: at.tipo,
+      });
+      marcarSalvo();
+      toast('Atendimento finalizado e salvo em Pacientes.');
+      go('/pacientes');
+    } catch (e) {
+      console.error('Erro ao finalizar:', e);
+      toast('Não consegui salvar: ' + (e && e.message ? e.message : 'erro desconhecido'), 'erro');
+    }
   }
 
   function renderResultado(r, box, at) {
